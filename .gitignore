@@ -7,4 +7,4 @@ staticfiles/
 .pytest_cache/
 .idea/
 .vscode/
-
+env.accounts

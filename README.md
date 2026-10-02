@@ -2,6 +2,12 @@
 
 Household finance demo built on [Portacode UniStack](https://github.com/portacode/UniStack).
 
+## Demo
+
+Try the live demo: [https://1429.exposify.net/](https://1429.exposify.net/).
+
+[Watch or download the Bayt demo video](docs/bayt-demo.mp4).
+
 ## Current functionality
 
 - Signup and login without email verification

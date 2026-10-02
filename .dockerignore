@@ -8,3 +8,4 @@ staticfiles
 **/.git
 .env.*
 !.env.example
+env.accounts
