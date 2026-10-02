@@ -67,14 +67,16 @@ def home(request):
         budget.excess=budget.used-budget.limit
         budget.pending=list(bills.filter(category=budget.category,paid=False))
         budget.months=[bills.filter(category=budget.category,period=date(2026,m,1)).aggregate(n=Sum('amount'))['n'] or Decimal(0) for m in (7,8,9)]
-        budget.chart_points=[{'x':80+i*250,'y':370-float(value)/1800*330,'label_y':356-float(value)/1800*330,'amount':f'{value:.2f}'} for i,value in enumerate(budget.months)]
+        budget.chart_points=[{'x':80+i*250,'y':370-float(value)/1800*330,'label_y':356-float(value)/1800*330,'amount':f'{value:,.2f}'} for i,value in enumerate(budget.months)]
         budget.points=' '.join(f'{point["x"]},{point["y"]:.2f}' for point in budget.chart_points)
         peak=max(budget.months) or Decimal(1)
         budget.chart_max=peak*Decimal('1.2')
         budget.detail_points=' '.join(f'{70+i*210},{108-float(value/budget.chart_max)*80:.2f}' for i,value in enumerate(budget.months))
         budget.color=['#286452','#b58333','#6a74ae'][budgets.index(budget)%3]
         budget.documents=list(bills.filter(category=budget.category).order_by('period'))
-    return render(request,'core/home.html',{'payment_methods':PaymentMethod.objects.filter(owner=request.user,active=True),'bills':pending,'all_bills':bills.order_by('-due'),'total':total,'forecast':sum(x['total'] for x in history)/3,'history':history,'budgets':budgets,'category_total':sum(b.used for b in budgets),'over_count':sum(b.over for b in budgets),'chat':Message.objects.filter(owner=request.user,created__gte=Message.objects.filter(owner=request.user,text__startswith='Your AED sample household').latest('id').created).order_by('id')[:100]})
+    response=render(request,'core/overview_data.html' if request.GET.get('fragment')=='overview' else 'core/home.html',{'payment_methods':PaymentMethod.objects.filter(owner=request.user,active=True),'bills':pending,'all_bills':bills.order_by('-due'),'total':total,'forecast':sum(x['total'] for x in history)/3,'history':history,'budgets':budgets,'category_total':sum(b.used for b in budgets),'over_count':sum(b.over for b in budgets),'chat':Message.objects.filter(owner=request.user,created__gte=Message.objects.filter(owner=request.user,text__startswith='Your AED sample household').latest('id').created).order_by('id')[:100]})
+    response['Cache-Control']='private, no-store'
+    return response
 
 @login_required(login_url='/login/')
 @require_POST
