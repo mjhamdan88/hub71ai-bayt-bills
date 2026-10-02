@@ -1,0 +1,34 @@
+/* Mobile-specific improvements for DraftMessageAdmin */
+
+@media (max-width: 600px) {
+    .draft-message-container {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        padding-top: 40px !important;
+        padding-bottom: 20px !important;
+        margin: 1px 0 !important;
+        border-radius: 2px !important;
+    }
+    .draft-header, .draft-footer {
+        flex-direction: column !important;
+        gap: 1px !important;
+        font-size: 0.95em !important;
+    }
+    #changelist-form .results {
+        overflow-x: visible !important;
+    }
+    .change-list .results th.field-message_preview {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        transform: translateX(-30px) !important;
+        display: block !important;
+        width: calc(100vw - 34px) !important;
+    }
+    .action-checkbox {
+        z-index: 100000 !important;
+        position: relative !important;
+    }
+    html, body, #container {
+        overflow-x: hidden !important;
+    }
+}

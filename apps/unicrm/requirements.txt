@@ -1,0 +1,4 @@
+# Unicrm-specific Python dependencies.
+# This file mirrors the per-app requirements pattern used across the project.
+
+Jinja2>=3.1.4,<4.0

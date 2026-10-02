@@ -1,0 +1,714 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='unicom' %}">Unicom</a>
+    &rsaquo; <a href="{% url 'admin:unicom_chat_changelist' %}">Chat</a>
+    &rsaquo; {{ chat.name }}
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+{% include "admin/unicom/includes/loading_indicators.html" %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<style>
+  :root {
+    --message-bg-user: #e1f5fe;
+    --message-bg-bot: #e8f5e9;
+    --message-text-user: #01579b;
+    --message-text-bot: #1b5e20;
+    --reply-bg: rgba(0, 0, 0, 0.05);
+    --audio-bg: #f8f9fa;
+    --audio-border: #dee2e6;
+    --form-bg: #ffffff;
+  }
+
+  [data-theme="dark"] {
+    --message-bg-user: #01579b;
+    --message-bg-bot: #1b5e20;
+    --message-text-user: #e1f5fe;
+    --message-text-bot: #e8f5e9;
+    --reply-bg: rgba(255, 255, 255, 0.1);
+    --audio-bg: #2c2c2c;
+    --audio-border: #444;
+    --form-bg: #1a1a1a;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  @keyframes highlight-target {
+    0%, 35% {
+      background-color: color-mix(in srgb, var(--link-hover-color) 50%, var(--message-bg-bot));
+    }
+    100% {
+      background-color: var(--message-bg-bot);
+    }
+  }
+
+  @keyframes highlight-target-user {
+    0%, 35% {
+      background-color: color-mix(in srgb, var(--link-hover-color) 50%, var(--message-bg-user));
+    }
+    100% {
+      background-color: var(--message-bg-user);
+    }
+  }
+
+  @keyframes highlight-target-triangle-bot {
+    0%, 35% {
+      border-left-color: color-mix(in srgb, var(--link-hover-color) 50%, var(--message-bg-bot));
+    }
+    100% {
+      border-left-color: var(--message-bg-bot);
+    }
+  }
+
+  @keyframes highlight-target-triangle-user {
+    0%, 35% {
+      border-right-color: color-mix(in srgb, var(--link-hover-color) 50%, var(--message-bg-user));
+    }
+    100% {
+      border-right-color: var(--message-bg-user);
+    }
+  }
+
+  :target.message-bot {
+    animation: highlight-target 2s ease;
+  }
+
+  :target.message-bot::after {
+    animation: highlight-target-triangle-bot 2s ease;
+  }
+
+  :target.message-user {
+    animation: highlight-target-user 2s ease;
+  }
+
+  :target.message-user::after {
+    animation: highlight-target-triangle-user 2s ease;
+  }
+
+  /* Make the animation replayable when clicking the same link multiple times */
+  @keyframes highlight-target-reset {
+    0% { }
+  }
+
+  .message a[href^="#"]:active + :target {
+    animation: highlight-target-reset 0s;
+  }
+
+  body {
+    background-color: var(--body-bg);
+    color: var(--body-fg);
+  }
+
+  .chat-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 10px;
+    padding-bottom: 120px;
+  }
+
+  .chat-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    transition: margin-bottom 0.3s ease-in-out;
+  }
+
+  .chat-messages.with-form {
+    margin-bottom: 550px;
+  }
+
+  .message {
+    max-width: 80%;
+    padding: 10px 15px;
+    border-radius: 18px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    position: relative;
+    touch-action: pan-y pinch-zoom;
+    transition: transform 0.3s ease;
+    cursor: pointer;
+  }
+
+  .message.selected {
+    border: 2px solid var(--button-bg);
+  }
+
+  .form-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--form-bg);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+  }
+
+  .form-inner {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 5px 10px;
+  }
+
+  .selected-message-container {
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 5px;
+    display: none;
+  }
+
+  .selected-message-container.visible {
+    display: block;
+  }
+
+  .selected-message-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+    color: var(--body-quiet-color);
+    font-size: 0.9em;
+  }
+
+  .reply-icon {
+    margin-right: 4px;
+  }
+
+  .selected-message-content {
+    max-height: 50px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    position: relative;
+    padding-right: 24px;
+    color: var(--body-quiet-color);
+    font-size: 0.9em;
+  }
+
+  .selected-message-content::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 20px;
+    background: linear-gradient(transparent, var(--form-bg));
+  }
+
+  .clear-selection {
+    background: none;
+    border: none;
+    color: var(--body-quiet-color);
+    cursor: pointer;
+    padding: 5px;
+    margin-left: auto;
+  }
+
+  .message-bot {
+    align-self: flex-end;
+    background-color: var(--message-bg-bot);
+    color: var(--message-text-bot);
+    border-bottom-right-radius: 0;
+  }
+
+  .message-bot::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    right: -10px;
+    width: 0;
+    height: 0;
+    border: 10px solid transparent;
+    border-left-color: var(--message-bg-bot);
+    border-bottom: 0;
+    border-right: 0;
+  }
+
+  .message-user {
+    align-self: flex-start;
+    background-color: var(--message-bg-user);
+    color: var(--message-text-user);
+    border-bottom-left-radius: 0;
+  }
+
+  .message-user::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: -10px;
+    width: 0;
+    height: 0;
+    border: 10px solid transparent;
+    border-right-color: var(--message-bg-user);
+    border-bottom: 0;
+    border-left: 0;
+  }
+
+  .reply-to {
+    background-color: var(--reply-bg);
+    border-radius: 12px;
+    padding: 8px;
+    margin-bottom: 8px;
+  }
+
+  .message img, .message audio {
+    max-width: 100%;
+    border-radius: 8px;
+    margin-bottom: 8px;
+  }
+
+  .message pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    word-break: break-word;
+    font-family: inherit;
+    margin: 0;
+  }
+
+  .message-content {
+    margin: 0;
+  }
+
+  /* Move the email scaling styles into a media query */
+  @media (max-width: 900px) {
+    .reply-to {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .reply-to .message-content.email-content {
+    transform: scale(0.75);
+    transform-origin: center top;
+    width: 133.33%;
+    margin-left: -16.665%;
+  }
+
+  .reply-to.email-content {
+    transform: scale(0.75);
+    transform-origin: center top;
+    width: 133.33%;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%) scale(0.75);
+  }
+
+
+    .message-content.email-content {
+      transform: scale(0.75);
+      transform-origin: center top;
+      width: 133.33%;
+      margin-left: -16.665%;
+    }
+
+    /* Remove duplicate scaling for nested content */
+    .reply-to.email-content .message-content.email-content {
+      transform: none;
+      width: 100%;
+      margin-left: 0;
+    }
+
+    .reply-to.email-content {
+      transform: translateX(-50%) scale(0.75);
+      transform-origin: center top;
+      width: 133.33%;
+      position: relative;
+      left: 50%;
+    }
+  }
+
+  .message-content img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .timestamp {
+    font-size: 0.75rem;
+    color: var(--body-quiet-color);
+    text-align: right;
+    margin-top: 5px;
+    padding-top: 5px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  @media (max-width: 600px) {
+    .chat-container {
+      padding: 5px;
+      padding-bottom: 100px;
+    }
+
+    .message {
+      max-width: 90%;
+    }
+  }
+
+  .message-content table,
+  .message-content tr,
+  .message-content td,
+  .message-content th,
+  .message-content tbody,
+  .message-content thead,
+  .message-content tfoot {
+    all: unset;
+    display: revert;
+  }
+
+  /* Optionally, re-apply only the most basic table layout styles */
+  .message-content table {
+    border-collapse: collapse;
+    width: auto;
+  }
+
+  /* Tool call message content styling */
+  .tool-call-message, .tool-response-message {
+    background: rgba(108, 117, 125, 0.05);
+    border-left: 3px solid #6c757d;
+    padding: 8px 12px;
+    margin: 0;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+
+  .tool-response-message {
+    border-left-color: #28a745;
+  }
+
+  .tool-call-message details, .tool-response-message details {
+    margin-top: 8px;
+  }
+
+  .tool-call-message summary, .tool-response-message summary {
+    padding: 4px 0;
+    font-weight: 500;
+  }
+
+  /* Tool message specific styling - distinct from user/bot messages */
+  .message-tool {
+    align-self: center;
+    max-width: 70%;
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.08), rgba(108, 117, 125, 0.12));
+    border: 1px solid rgba(108, 117, 125, 0.2);
+    color: var(--body-fg);
+    border-radius: 8px;
+    opacity: 0.85;
+    margin: 12px auto;
+    position: relative;
+  }
+  /* Ensure the actions button is fully visible on tool messages */
+  .message-tool .message-actions-menu-container {
+    opacity: 1;
+    z-index: 20;
+  }
+  .message-tool:hover .message-actions-btn {
+    opacity: 1 !important;
+  }
+
+  .message-tool::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3px;
+    height: 60%;
+    background: linear-gradient(to bottom, #6c757d, #28a745);
+    border-radius: 2px;
+  }
+
+  /* Remove speech bubble triangles for tool messages */
+  .message-tool::after {
+    display: none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-container">
+  {% if chat.platform == 'Email' %}
+    <div class="email-thread-header">
+      <h1>{{ subject_line }}</h1>
+      {% if show_recipients %}
+        <div class="email-recipients">
+          {% if last_message.to %}<p><strong>To:</strong> {{ last_message.to|join:", " }}</p>{% endif %}
+          {% if last_message.cc %}<p><strong>Cc:</strong> {{ last_message.cc|join:", " }}</p>{% endif %}
+          {% if last_message.bcc %}<p><strong>Bcc:</strong> {{ last_message.bcc|join:", " }}</p>{% endif %}
+        </div>
+      {% endif %}
+    </div>
+  {% else %}
+    <h1>Chat with: {{ chat.name }} ({{ chat.id }})</h1>
+  {% endif %}
+  
+  <div class="chat-messages">
+    {% for message in chat_messages_list %}
+    <div id="message_{{ message.id }}" class="message {% if message.media_type == 'tool_call' or message.media_type == 'tool_response' %}message-tool{% elif message.is_outgoing %}message-bot{% else %}message-user{% endif %}" style="position: relative;">
+      {% include "admin/unicom/includes/message_actions_menu.html" with message=message %}
+      {% if message.reply_to_message %}
+      <a href="#message_{{ message.reply_to_message.id }}">
+        <div class="reply-to {% if message.reply_to_message.platform == 'Email' %}email-content{% endif %}">
+          {% if message.reply_to_message.media_type == "image" and message.reply_to_message.media %}
+            <img src="{{ message.reply_to_message.media.url }}" alt="Image message">
+          {% elif message.reply_to_message.media_type == "image" %}
+            <div style="color: red;">Image file is missing.</div>
+          {% endif %}
+          {% if message.reply_to_message.html %}
+            <div class="message-content {% if message.reply_to_message.platform == 'Email' %}email-content{% endif %}">{{ message.reply_to_message.html|safe }}</div>
+          {% else %}
+            <pre>{{ message.reply_to_message.text }}</pre>
+          {% endif %}
+        </div>
+      </a>
+      {% endif %}
+
+      {% if message.media_type == "image" and message.media %}
+        <img src="{{ message.media.url }}" alt="Image message">
+      {% elif message.media_type == "image" %}
+        <div style="color: red;">Image file is missing.</div>
+      {% elif message.media_type == "audio" %}
+      {% if message.media %}
+        <audio controls>
+          <source src="{{ message.media.url }}" type="audio/mpeg">
+          Your browser does not support the audio element.
+        </audio>
+      {% else %}
+      <p>File not found</p>
+      {% endif %}
+      {% elif message.media_type == "tool_call" %}
+        <div class="tool-call-message">
+          <i class="fas fa-cog" style="color: #6c757d;"></i>
+          <strong>Tool Call:</strong> {{ message.raw.tool_call.name }}
+          {% if message.raw.tool_call.arguments %}
+            <details style="margin-top: 5px;">
+              <summary style="cursor: pointer; color: #6c757d;">Arguments</summary>
+              <pre style="background: rgba(0,0,0,0.05); padding: 8px; border-radius: 4px; font-size: 0.8em;">{{ message.raw.tool_call.arguments|pprint }}</pre>
+            </details>
+          {% endif %}
+        </div>
+      {% elif message.media_type == "tool_response" %}
+        <div class="tool-response-message">
+          <i class="fas fa-check-circle" style="color: #28a745;"></i>
+          <strong>Tool Response:</strong>
+          {% if message.raw.tool_response.result %}
+            <details style="margin-top: 5px;">
+              <summary style="cursor: pointer; color: #6c757d;">Result</summary>
+              <pre style="background: rgba(0,0,0,0.05); padding: 8px; border-radius: 4px; font-size: 0.8em;">{{ message.raw.tool_response.result|pprint }}</pre>
+            </details>
+          {% endif %}
+        </div>
+      {% endif %}
+
+      {% if message.html %}
+        <div class="message-content {% if message.platform == 'Email' %}email-content{% endif %}">{{ message.html|safe }}</div>
+      {% else %}
+        <pre>{{ message.text }}</pre>
+      {% endif %}
+
+      <div class="timestamp">
+        {% if message.platform == 'Email' %}
+          {{ message.sender_id }}
+        {% else %}
+          {% if message.user.username %}
+            {{ message.user.username }}
+          {% else %}
+            {{ message.sender_name }}
+          {% endif %}
+        {% endif %}
+        : {{ message.timestamp|date:"h:i A" }} - {{ message.timestamp|timesince }} ago
+        {% if message.is_outgoing %}
+        <span style="margin-left: 10px;">
+          {% if message.platform == 'Telegram' %}
+          <i class="fas fa-check"></i>
+          {% elif message.platform == 'Email' %}
+          {% if message.opened %}
+          <i class="fas fa-check-double" style="color: lightskyblue"></i>
+          {% if message.link_clicked %}
+          <i class="fas fa-check-double" style="color: #4CAF50"></i>
+          {% endif %}
+          {% elif message.sent %}
+          <i class="fas fa-check-double"></i>
+          {% else %}
+          <i class="fas fa-clock"></i>
+          {% endif %}
+          {% else %}
+          {% if message.seen %}
+          <i class="fas fa-check-double" style="color: lightskyblue"></i>
+          {% elif message.delivered %}
+          <i class="fas fa-check-double"></i>
+          {% elif message.sent %}
+          <i class="fas fa-check"></i>
+          {% else %}
+          <i class="fas fa-clock"></i>
+          {% endif %}
+          {% endif %}
+        </span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if chat.platform == 'Email' %}
+    {% include 'admin/unicom/forms/email_message_form.html' %}
+  {% else %}
+    {% include 'admin/unicom/forms/text_message_form.html' %}
+  {% endif %}
+</div>
+
+<script>
+let selectedMessage = null;
+let touchStartX = 0;
+let touchEndX = 0;
+let touchStartY = 0;
+let touchEndY = 0;
+let isScrolling = false;
+let touchStartTime = 0;
+
+function handleTouchStart(e) {
+    // Ignore touch events on reply-to links
+    if (e.target.closest('.reply-to')) {
+        return;
+    }
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+    isScrolling = false;
+}
+
+function handleTouchMove(e) {
+    // Ignore touch events on reply-to links
+    if (e.target.closest('.reply-to')) {
+        return;
+    }
+    if (e.touches.length > 1) {
+        // Ignore multi-touch gestures
+        return;
+    }
+
+    touchEndX = e.touches[0].clientX;
+    touchEndY = e.touches[0].clientY;
+    
+    const diffX = touchEndX - touchStartX;
+    const diffY = Math.abs(touchEndY - touchStartY);
+    
+    // Detect if user is trying to scroll vertically
+    if (!isScrolling && diffY > Math.abs(diffX)) {
+        isScrolling = true;
+    }
+    
+    // Only show horizontal movement if not scrolling and the movement is significant
+    if (!isScrolling && Math.abs(diffX) > 20) {
+        e.currentTarget.style.transform = `translateX(${diffX * 0.5}px)`; // Reduced movement multiplier
+    }
+}
+
+function handleTouchEnd(e) {
+    // Ignore touch events on reply-to links
+    if (e.target.closest('.reply-to')) {
+        return;
+    }
+    const touchDuration = Date.now() - touchStartTime;
+    const diffX = touchEndX - touchStartX;
+    const diffY = Math.abs(touchEndY - touchStartY);
+    
+    // Reset transform
+    e.currentTarget.style.transform = 'translateX(0)';
+    
+    // Only select if:
+    // 1. Not detected as vertical scroll
+    // 2. Horizontal swipe is significant (> 100px)
+    // 3. Vertical movement is minimal (< 50px)
+    // 4. Touch duration is under 500ms
+    if (!isScrolling && 
+        Math.abs(diffX) > 100 && 
+        diffY < 50 && 
+        touchDuration < 500) {
+        selectMessage(e.currentTarget);
+    }
+}
+
+function handleClick(e) {
+    // Ignore clicks on reply-to links
+    if (e.target.closest('.reply-to')) {
+        return;
+    }
+    selectMessage(e.currentTarget);
+}
+
+function selectMessage(messageElement) {
+    // Clear previous selection
+    if (selectedMessage) {
+        selectedMessage.classList.remove('selected');
+    }
+    
+    selectedMessage = messageElement;
+    messageElement.classList.add('selected');
+    
+    // Update the reply UI
+    const container = document.querySelector('.selected-message-container');
+    const content = document.querySelector('.selected-message-content');
+    const replyInput = document.getElementById('reply_to_id');
+    const formContainer = document.querySelector('.form-container');
+    const chatMessages = document.querySelector('.chat-messages');
+    
+    if (container && content && replyInput && formContainer && chatMessages) {
+        // Clone the message content but remove the timestamp and reply-to section
+        const messageClone = messageElement.cloneNode(true);
+        const timestamp = messageClone.querySelector('.timestamp');
+        const replyTo = messageClone.querySelector('.reply-to');
+        if (timestamp) {
+            timestamp.remove();
+        }
+        if (replyTo) {
+            replyTo.parentElement.remove(); // Remove the anchor tag containing reply-to
+        }
+        content.innerHTML = messageClone.innerHTML;
+        
+        container.classList.add('visible');
+        formContainer.classList.add('visible');
+        chatMessages.classList.add('with-form');
+        replyInput.value = messageElement.id.replace('message_', '');
+    }
+}
+
+function clearSelection() {
+    if (selectedMessage) {
+        selectedMessage.classList.remove('selected');
+        selectedMessage = null;
+    }
+    
+    const container = document.querySelector('.selected-message-container');
+    const replyInput = document.getElementById('reply_to_id');
+    const formContainer = document.querySelector('.form-container');
+    const chatMessages = document.querySelector('.chat-messages');
+    
+    if (container && replyInput && formContainer && chatMessages) {
+        container.classList.remove('visible');
+        formContainer.classList.remove('visible');
+        chatMessages.classList.remove('with-form');
+        replyInput.value = '';
+    }
+}
+
+// Add event listeners
+document.querySelectorAll('.message').forEach(message => {
+    message.addEventListener('touchstart', handleTouchStart);
+    message.addEventListener('touchmove', handleTouchMove);
+    message.addEventListener('touchend', handleTouchEnd);
+    message.addEventListener('click', handleClick);
+});
+
+// Add event listeners for reply-to links to prevent event bubbling
+document.querySelectorAll('.reply-to').forEach(replyTo => {
+    replyTo.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+});
+
+document.querySelector('.clear-selection').addEventListener('click', clearSelection);
+</script>
+{% endblock %}

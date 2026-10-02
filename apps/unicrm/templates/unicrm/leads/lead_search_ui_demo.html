@@ -1,0 +1,279 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Lead Search UI Demo | {{ block.super }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
+<style>
+:root {
+  --tag-include-bg: #e6ffed;
+  --tag-include-border: #34c759;
+  --tag-include-text: #0b3d14;
+  --tag-exclude-bg: #ffecec;
+  --tag-exclude-border: #ff4d4f;
+  --tag-exclude-text: #7d0b0b;
+}
+.ui-demo {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 20px;
+}
+.filter-panel {
+  background: var(--body-bg);
+  border: 1px solid var(--hairline-color);
+  border-radius: 8px;
+  padding: 16px;
+  position: sticky;
+  top: 20px;
+  align-self: start;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.filter-panel h2 {
+  margin: 0 0 12px 0;
+}
+.filter {
+  margin-bottom: 14px;
+}
+.filter label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.filter small {
+  color: var(--body-quiet-color);
+  font-weight: normal;
+}
+.results-pane {
+  border: 1px solid var(--hairline-color);
+  border-radius: 8px;
+  background: var(--body-bg);
+  padding: 12px;
+  min-height: 480px;
+}
+.results-pane h3 {
+  margin-top: 0;
+}
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.result-table th,
+.result-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--hairline-color);
+  text-align: left;
+}
+.result-table th {
+  background: var(--darkened-bg);
+}
+.tagify {
+  min-height: 44px;
+  min-width: 100%;
+}
+.tagify__input {
+  min-width: 140px;
+}
+.tagify__tag {
+  padding: 2px 6px;
+}
+.tagify__tag.include { background: var(--tag-include-bg); border-color: var(--tag-include-border); color: var(--tag-include-text); }
+.tagify__tag.exclude { background: var(--tag-exclude-bg); border-color: var(--tag-exclude-border); color: var(--tag-exclude-text); }
+.tagify__tag .tagify__tag-text {
+  padding-right: 0.35rem;
+}
+.tagify__tag .toggle-exclude {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: inherit;
+}
+@media (max-width: 900px) {
+  .ui-demo {
+    grid-template-columns: 1fr;
+  }
+  .filter-panel {
+    position: static;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{{ {
+  "industries": industries,
+  "seniority": seniority_levels,
+  "company_types": company_types,
+  "employee_ranges": employee_ranges,
+}|json_script:"lead-search-enums-json" }}
+<div class="ui-demo">
+  <div class="filter-panel">
+    <h2>Filter UI Demo (Tagify)</h2>
+    <p class="text-muted">Include/exclude tags with suggestions. Click the ⊖ on a tag to toggle include/exclude; ✕ removes.</p>
+    <div id="filters"></div>
+  </div>
+  <div class="results-pane">
+    <h3>Preview (static)</h3>
+    <table class="result-table">
+      <thead>
+        <tr>
+          <th>Contact Insight ID</th>
+          <th>Contact Name</th>
+          <th>Contact Position</th>
+          <th>Company Name</th>
+          <th>Company Domain</th>
+          <th>Company Industry</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>5f76eac74aee061e2ff122fc</td>
+          <td>Traci Logan</td>
+          <td>COO/CFO</td>
+          <td>New England College of Optometry</td>
+          <td>neco.edu</td>
+          <td>Higher Education</td>
+        </tr>
+        <tr>
+          <td>5f76c53ec5e8c71e8d3486c2</td>
+          <td>Raisha Cobb</td>
+          <td>CISO</td>
+          <td>Winston-Salem State University</td>
+          <td>wssu.edu</td>
+          <td>Higher Education</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
+<script>
+(function() {
+  const enumsScript = document.getElementById('lead-search-enums-json');
+  let enums = { industries: [], seniority: [], company_types: [], employee_ranges: [] };
+  if (enumsScript) {
+    try {
+      enums = JSON.parse(enumsScript.textContent);
+    } catch (e) {
+      console.warn('Failed to parse enums', e);
+    }
+  }
+
+  const filtersConfig = [
+    { key: 'position', label: 'Job title', whitelist: ['CEO','CTO','COO','VP','Director','Manager','Engineer'] },
+    { key: 'departments', label: 'Departments', whitelist: ['Engineering','Marketing','Sales','Product','Finance','HR'] },
+    { key: 'seniority', label: 'Seniority', whitelist: enums.seniority || [] },
+    { key: 'location', label: 'Location', whitelist: ['United States','Canada','United Kingdom','Germany','United Arab Emirates','Singapore'] },
+    { key: 'industry', label: 'Industry', whitelist: enums.industries || [] },
+    { key: 'employees', label: 'Employees', whitelist: enums.employee_ranges || [] },
+    { key: 'hq', label: 'Headquarters', whitelist: ['San Francisco, CA','New York, NY','London, UK','Dubai, UAE','Singapore'] },
+    { key: 'domain', label: 'Domain', whitelist: ['example.com','acme.com','illinois.edu','neco.edu'] },
+    { key: 'company_name', label: 'Company Name', whitelist: ['Acme Corp','Globex','University of Illinois','New England College of Optometry'] },
+    { key: 'founded', label: 'Founded Year', whitelist: ['1950','1990','2010','2020'] },
+    { key: 'company_type', label: 'Company Type', whitelist: enums.company_types || [] },
+    { key: 'company_keywords', label: 'Company Keywords', whitelist: ['SaaS','Cloud','AI','Fintech','Healthcare','Logistics'] },
+    { key: 'technologies', label: 'Technologies', whitelist: ['AWS','Azure','GCP','Salesforce','HubSpot','Postgres','MongoDB'] },
+    { key: 'contact_names', label: 'Contact Names', whitelist: ['John','Jane','Alex','Maria'] },
+    { key: 'contact_keywords', label: 'Contact Keywords', whitelist: ['Founder','CISO','Data','AI','Security','Marketing'] },
+  ];
+
+  const filtersRoot = document.getElementById('filters');
+
+  function parseParams() {
+    const params = new URLSearchParams(window.location.search);
+    const values = {};
+    filtersConfig.forEach(cfg => {
+      values[cfg.key] = {
+        include: params.get(`${cfg.key}_include`) ? params.get(`${cfg.key}_include`).split(',').filter(Boolean) : [],
+        exclude: params.get(`${cfg.key}_exclude`) ? params.get(`${cfg.key}_exclude`).split(',').filter(Boolean) : [],
+      };
+    });
+    return values;
+  }
+
+  function syncURL(tagifyMap) {
+    const params = new URLSearchParams();
+    Object.entries(tagifyMap).forEach(([key, tagify]) => {
+      const include = [];
+      const exclude = [];
+      tagify.DOM.scope.querySelectorAll('tag').forEach(tagEl => {
+        const val = tagEl.getAttribute('value');
+        if (!val) return;
+        if (tagEl.classList.contains('exclude')) exclude.push(val);
+        else include.push(val);
+      });
+      if (include.length) params.set(`${key}_include`, include.join(','));
+      if (exclude.length) params.set(`${key}_exclude`, exclude.join(','));
+    });
+    const qs = params.toString();
+    const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }
+
+  function renderFilter(cfg, initial, tagifyMap) {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'filter';
+    wrapper.innerHTML = `<label>${cfg.label} <small>(include/exclude)</small></label>`;
+
+    const input = document.createElement('input');
+    input.className = 'tagify-input';
+    wrapper.appendChild(input);
+    filtersRoot.appendChild(wrapper);
+
+    const tagify = new Tagify(input, {
+      whitelist: cfg.whitelist || [],
+      dropdown: { enabled: 0, closeOnSelect: true, maxItems: 15, fuzzySearch: true },
+      enforceWhitelist: false,
+    });
+
+    // Custom template to include toggle button
+    tagify.settings.templates.tag = function(tagData) {
+      const cls = tagData.exclude ? 'tagify__tag exclude' : 'tagify__tag include';
+      return `<tag title="${tagData.value}"
+          contenteditable="false"
+          spellcheck="false"
+          class="${cls}"
+          ${this.getAttributes(tagData)}>
+        <x title="" class="tagify__tag__removeBtn"></x>
+        <span class="tagify__tag-text">${tagData.value}</span>
+        <button type="button" class="toggle-exclude" title="Toggle include/exclude">⊖</button>
+      </tag>`;
+    };
+
+    // Preload values
+    const preload = [];
+    (initial.include || []).forEach(v => preload.push({ value: v, exclude: false }));
+    (initial.exclude || []).forEach(v => preload.push({ value: v, exclude: true }));
+    if (preload.length) tagify.addTags(preload);
+
+    // Toggle exclude on click
+    tagify.DOM.scope.addEventListener('click', (e) => {
+      if (e.target.classList.contains('toggle-exclude')) {
+        const tagElm = e.target.closest('tag');
+        const uid = tagElm && tagElm.getAttribute('value');
+        const item = tagify.value.find(t => t.value === uid);
+        const newData = Object.assign({}, item || { value: uid }, { exclude: !(item && item.exclude) });
+        if (tagElm) tagify.removeTags(tagElm, true);
+        tagify.addTags([newData]);
+        syncURL(tagifyMap);
+      }
+    });
+
+    tagify.on('add', () => syncURL(tagifyMap));
+    tagify.on('remove', () => syncURL(tagifyMap));
+
+    tagifyMap[cfg.key] = tagify;
+  }
+
+  const tagifyMap = {};
+  const initial = parseParams();
+  filtersConfig.forEach(cfg => renderFilter(cfg, initial[cfg.key] || { include: [], exclude: [] }, tagifyMap));
+  syncURL(tagifyMap);
+})();
+</script>
+{% endblock %}

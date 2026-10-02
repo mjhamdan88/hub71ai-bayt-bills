@@ -1,0 +1,70 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+
+{% block title %}Email Communications | {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="unicrm-communications">
+  <h1>Email Communications</h1>
+  <p>Manage scheduled campaigns and monitor delivery status.</p>
+
+  <p>
+    <a class="btn btn-primary" href="{% url 'unicrm:communications-compose' %}">Compose new communication</a>
+  </p>
+
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Segment</th>
+        <th>Channel</th>
+        <th>Status</th>
+        <th>Scheduled for</th>
+        <th>Totals</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for communication in communications %}
+        {% with summary=communication.status_summary %}
+          <tr>
+            <td>{{ communication.display_title }}</td>
+            <td>{{ communication.segment.name }}</td>
+            <td>{{ communication.channel }}</td>
+            <td><span class="badge bg-primary">{{ communication.get_status_display }}</span></td>
+            <td>
+              {% if communication.scheduled_for %}
+                {{ communication.scheduled_for|naturaltime }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>
+              {% if summary.total %}
+                {{ summary.total }} total —
+                {{ summary.sent|default:0 }} sent,
+                {{ summary.opened|default:0 }} opened,
+                {{ summary.clicked|default:0 }} clicked,
+                {{ summary.replied|default:0 }} replied,
+                {{ summary.failed|default:0 }} failed
+              {% else %}
+                No deliveries yet
+              {% endif %}
+            </td>
+            <td>
+              <a class="btn btn-sm btn-outline-primary"
+                 href="{% url 'admin:unicrm_communication_deliveries' communication.pk %}">
+                Deliveries
+              </a>
+            </td>
+          </tr>
+        {% endwith %}
+      {% empty %}
+        <tr>
+          <td colspan="7">No communications defined yet.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

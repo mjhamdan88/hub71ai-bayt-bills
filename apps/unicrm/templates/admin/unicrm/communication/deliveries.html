@@ -1,0 +1,309 @@
+{% extends "admin/base_site.html" %}
+{% load humanize %}
+
+{% block title %}Deliveries for {{ communication.display_title }} | {{ block.super }}{% endblock %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  {{ media.css }}
+{% endblock %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {{ media.js }}
+{% endblock %}
+
+{% block content %}
+<div class="communication-deliveries">
+  <h1>Deliveries for "{{ communication.display_title }}"</h1>
+  <p>
+    Segment: <strong>{{ communication.segment.name }}</strong><br>
+    Channel: <strong>{{ communication.channel }}</strong><br>
+    Scheduled for:
+    <strong>
+      {% if communication.scheduled_for %}
+        {{ communication.scheduled_for|naturaltime }}
+      {% else %}
+        Not scheduled
+      {% endif %}
+    </strong>
+  </p>
+
+  <p>
+    <a href="{% url 'admin:unicrm_communication_change' communication.pk %}" class="button">
+      Back to communication
+    </a>
+  </p>
+
+  <div class="module">
+    <h2>Filter deliveries</h2>
+    <form method="get" class="delivery-filter-form">
+      <fieldset>
+        <legend>Status</legend>
+        <div class="status-options">
+          {% for option in status_options %}
+            <label class="status-option">
+              <input type="checkbox" name="status" value="{{ option.key }}" {% if option.active %}checked{% endif %}>
+              <span class="status-option__swatch" style="background-color: {{ option.color }};"></span>
+              <span class="status-option__label">
+                {{ option.label }}
+                <span class="status-option__count">({{ option.count }})</span>
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <div class="search-field">
+        <label for="id_q">Search contact</label>
+        <input type="search" id="id_q" name="q" value="{{ search_query }}" placeholder="Name or email">
+      </div>
+      <div class="filter-actions">
+        <button type="submit" class="button">Apply filters</button>
+        {% if applied_filters or search_query %}
+          <a href="?">Clear filters</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  <p class="delivery-count">
+    Showing <strong>{{ filtered_count }}</strong> of <strong>{{ total_count }}</strong> results (overall {{ overall_count }}).
+    {% if applied_filters %} Active filters: {{ applied_filters|join:", " }}.{% endif %}
+  </p>
+
+  <div class="results">
+    {% if deliveries %}
+      <div class="delivery-grid">
+        {% for item in deliveries %}
+          {% with delivery=item.delivery message=delivery.message payload=item.payload %}
+            <article class="delivery-card status-{{ item.status_key }}"
+                     style="--status-color: {{ item.status_color }}; --status-text-color: {{ item.status_text_color }};">
+              <header class="delivery-card__header">
+                <div class="delivery-card__identity">
+                  <div class="delivery-card__contact">{{ delivery.contact }}</div>
+                  {% if delivery.contact.email %}
+                    <div class="delivery-card__email">{{ delivery.contact.email }}</div>
+                  {% endif %}
+                  {% if delivery.contact.company %}
+                    <div class="delivery-card__company">{{ delivery.contact.company }}</div>
+                  {% endif %}
+                  <div class="delivery-card__meta-inline">
+                    <span>Delivery ID: {{ delivery.pk }}</span>
+                    {% if item.metadata_status %}
+                      <span>Metadata: {{ item.metadata_status }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="delivery-card__status">
+                  <span class="comm-delivery-status" style="background-color: {{ item.status_color }}; color: {{ item.status_text_color }};">
+                    {{ item.status_label }}
+                  </span>
+                  <span class="delivery-card__substatus">{{ delivery.message_status }}</span>
+                  <span class="delivery-card__timestamps">
+                    <span>Created {{ delivery.created_at|naturaltime }}</span>
+                    <span>Updated {{ delivery.updated_at|naturaltime }}</span>
+                  </span>
+                </div>
+              </header>
+
+              <div class="delivery-card__grid">
+                <section class="delivery-card__section">
+                  <h3>Timeline</h3>
+                  <ul class="delivery-card__timeline">
+                    {% if item.scheduled_at %}
+                      <li><span class="delivery-card__timeline-label">Scheduled</span><span>{{ item.scheduled_at|naturaltime }}</span></li>
+                    {% elif item.send_at %}
+                      <li><span class="delivery-card__timeline-label">Scheduled</span><span>{{ item.send_at }}</span></li>
+                    {% endif %}
+                    {% if message %}
+                      {% if message.time_sent %}
+                        <li><span class="delivery-card__timeline-label">Sent</span><span>{{ message.time_sent|naturaltime }}</span></li>
+                      {% elif message.sent %}
+                        <li><span class="delivery-card__timeline-label">Sent</span><span>Queued</span></li>
+                      {% endif %}
+                      {% if message.time_delivered %}
+                        <li><span class="delivery-card__timeline-label">Delivered</span><span>{{ message.time_delivered|naturaltime }}</span></li>
+                      {% elif message.delivered %}
+                        <li><span class="delivery-card__timeline-label">Delivered</span><span>Reported</span></li>
+                      {% endif %}
+                      {% if message.time_opened %}
+                        <li><span class="delivery-card__timeline-label">Opened</span><span>{{ message.time_opened|naturaltime }}</span></li>
+                      {% elif message.opened %}
+                        <li><span class="delivery-card__timeline-label">Opened</span><span>Tracked</span></li>
+                      {% endif %}
+                      {% if message.time_link_clicked %}
+                        <li><span class="delivery-card__timeline-label">Clicked</span><span>{{ message.time_link_clicked|naturaltime }}</span></li>
+                      {% elif message.link_clicked %}
+                        <li><span class="delivery-card__timeline-label">Clicked</span><span>Tracked</span></li>
+                      {% endif %}
+                    {% endif %}
+                    {% if item.has_reply %}
+                      <li>
+                        <span class="delivery-card__timeline-label">Replied</span>
+                        <span>
+                          {% if item.replied_at %}
+                            {{ item.replied_at|naturaltime }}
+                          {% else %}
+                            Detected
+                          {% endif %}
+                          {% if item.reply_count > 1 %}
+                            ({{ item.reply_count }} messages)
+                          {% endif %}
+                        </span>
+                      </li>
+                    {% endif %}
+                  </ul>
+                  {% if item.errors %}
+                    <div class="delivery-card__alert">
+                      <strong>Errors</strong>
+                      <ul>
+                        {% for error in item.errors %}
+                          <li>{{ error }}</li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+                  {% endif %}
+                </section>
+
+                <section class="delivery-card__section">
+                  <h3>Message</h3>
+                  {% if message %}
+                    <dl class="delivery-card__meta">
+                      <dt>ID</dt>
+                      <dd>{{ message.id }}</dd>
+                      <dt>Subject</dt>
+                      <dd>
+                        {% if message.subject %}
+                          {{ message.subject }}
+                        {% elif payload.subject %}
+                          {{ payload.subject }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </dd>
+                      <dt>To</dt>
+                      <dd>
+                        {% if payload.to %}
+                          {{ payload.to|join:", " }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </dd>
+                    </dl>
+                  {% else %}
+                    <p class="delivery-card__muted">Message not dispatched yet.</p>
+                    <dl class="delivery-card__meta">
+                      <dt>Prepared subject</dt>
+                      <dd>{{ payload.subject|default:"—" }}</dd>
+                      <dt>Recipients</dt>
+                      <dd>
+                        {% if payload.to %}
+                          {{ payload.to|join:", " }}
+                        {% else %}
+                          —
+                        {% endif %}
+                      </dd>
+                    </dl>
+                  {% endif %}
+                  <div class="delivery-card__chat">
+                    {% if item.chat_url %}
+                      <a href="{{ item.chat_url }}" class="button">View Chat</a>
+                    {% endif %}
+                {% if item.has_reply %}
+                  <p class="delivery-card__muted">
+                    Recipient replied
+                    {% if item.replied_at %}
+                      {{ item.replied_at|naturaltime }}
+                    {% endif %}
+                    {% if item.reply_count > 1 %}
+                      • {{ item.reply_count }} messages
+                    {% endif %}
+                  </p>
+                {% else %}
+                  <p class="delivery-card__muted">No replies detected.</p>
+                {% endif %}
+                {% if item.status_key == 'failed' or item.status_key == 'bounced' %}
+                  <div class="delivery-card__actions">
+                    <button type="button"
+                            class="button button-small delivery-retry-btn"
+                            data-retry-endpoint="{% url 'unicrm:delivery-retry' delivery.pk %}">
+                      Retry send
+                    </button>
+                    <span class="delivery-retry-result" aria-live="polite"></span>
+                  </div>
+                {% endif %}
+              </div>
+            </section>
+          </div>
+
+              <footer class="delivery-card__footer">
+                <details>
+                  <summary>View metadata</summary>
+                  <pre>{{ item.metadata_pretty }}</pre>
+                </details>
+              </footer>
+            </article>
+          {% endwith %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="delivery-empty">
+        No deliveries match the selected filters.
+      </div>
+    {% endif %}
+  </div>
+</div>
+<script>
+(function() {
+  function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) {
+      return parts.pop().split(';').shift();
+    }
+    return '';
+  }
+
+  document.addEventListener('click', function(event) {
+    const button = event.target.closest('.delivery-retry-btn');
+    if (!button) {
+      return;
+    }
+    event.preventDefault();
+    if (button.dataset.loading === '1') {
+      return;
+    }
+    const endpoint = button.getAttribute('data-retry-endpoint');
+    const statusEl = button.parentElement.querySelector('.delivery-retry-result');
+    button.dataset.loading = '1';
+    button.disabled = true;
+    if (statusEl) {
+      statusEl.textContent = 'Retrying…';
+    }
+    fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json',
+      },
+      credentials: 'same-origin',
+    }).then(async (response) => {
+      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload.error || 'Retry failed');
+      }
+      if (statusEl) {
+        statusEl.textContent = 'Retry queued';
+      }
+      setTimeout(() => window.location.reload(), 500);
+    }).catch((error) => {
+      if (statusEl) {
+        statusEl.textContent = error.message;
+      }
+      button.disabled = false;
+      button.dataset.loading = '0';
+    });
+  });
+})();
+</script>
+{% endblock %}

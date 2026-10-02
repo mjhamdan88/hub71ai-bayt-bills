@@ -1,0 +1,70 @@
+{% extends "admin/change_form.html" %}
+
+{% load static %}
+
+{% block extrahead %}
+  {{ block.super }}
+  {% if tinymce_api_key %}
+    <script src="https://cdn.tiny.cloud/1/{{ tinymce_api_key }}/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+  {% else %}
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+  {% endif %}
+  <script src="{% static 'unicom/js/tinymce_init.js' %}"></script>
+  <script src="{% static 'unicom/js/tinymce_ai_template.js' %}"></script>
+  {% include "admin/unicom/includes/ai_template_modal.html" %}
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const segmentField = document.getElementById('id_segment');
+      const mailingListField = document.getElementById('id_mailing_list');
+      const followUpField = document.getElementById('id_follow_up_for');
+      const excludeFollowUpSiblingsField = document.getElementById('id_exclude_follow_up_siblings');
+      const summaryEl = document.createElement('div');
+      summaryEl.style.marginTop = '10px';
+      summaryEl.innerHTML = '<em>Audience summary will appear here.</em>';
+      const targetContainer = document.querySelector('#id_segment')?.closest('.form-row') || document.querySelector('fieldset');
+      if (targetContainer) {
+        targetContainer.parentNode.insertBefore(summaryEl, targetContainer.nextSibling);
+      }
+
+      async function fetchPreview() {
+        if (!summaryEl) return;
+        const seg = segmentField ? segmentField.value : '';
+        const ml = mailingListField ? mailingListField.value : '';
+        const followUp = followUpField ? followUpField.value : '';
+        const excludeSiblings = excludeFollowUpSiblingsField ? (excludeFollowUpSiblingsField.checked ? '1' : '0') : '1';
+        if (!seg && !ml) {
+          summaryEl.innerHTML = '<em>Select a segment or mailing list to preview audience.</em>';
+          return;
+        }
+        summaryEl.innerHTML = 'Loading audience...';
+        try {
+          const resp = await fetch('{% url "unicrm:audience_preview" %}?segment_id=' + encodeURIComponent(seg) + '&mailing_list_id=' + encodeURIComponent(ml) + '&follow_up_for=' + encodeURIComponent(followUp) + '&exclude_follow_up_siblings=' + encodeURIComponent(excludeSiblings), {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+          if (!resp.ok) throw new Error('Failed to load audience');
+          const data = await resp.json();
+          const contacts = (data.contacts || []).map(c => `${c.email || 'no-email'}${c.company ? ' (' + c.company + ')' : ''}`);
+          summaryEl.innerHTML = `
+            <strong>Audience</strong>: ${data.count || 0} contact(s)
+            <div style="margin-top:4px; font-size: 12px;">Sample: ${contacts.slice(0,10).join(', ') || 'n/a'}</div>
+          `;
+        } catch (err) {
+          summaryEl.innerHTML = `<span style="color:red;">${err}</span>`;
+        }
+      }
+
+      if (segmentField) segmentField.addEventListener('change', fetchPreview);
+      if (mailingListField) mailingListField.addEventListener('change', fetchPreview);
+      if (followUpField) followUpField.addEventListener('change', fetchPreview);
+      if (excludeFollowUpSiblingsField) excludeFollowUpSiblingsField.addEventListener('change', fetchPreview);
+      fetchPreview();
+    });
+  </script>
+{% endblock %}
+
+{% block object-tools-items %}
+  {{ block.super }}
+  {% if deliveries_view_url %}
+    <li>
+      <a href="{{ deliveries_view_url }}" class="historylink">View deliveries</a>
+    </li>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,42 @@
+source_template: ubuntu
+name: UniStack
+hostname: unistack
+username: root
+requires_codex_connection: true
+resources:
+  disk_gib: 12
+  ram_mib: 3072
+  cpus: 2
+project_paths:
+  - /opt/UniStack
+inputs:
+  - id: django_superuser_username
+    type: text
+    label: Django admin username
+    required: true
+    default: admin
+    description: Username for the initial Django superuser.
+  - id: django_superuser_email
+    type: email
+    label: Django admin email
+    required: true
+    description: Email address for the initial Django superuser.
+  - id: django_superuser_password
+    type: secret
+    label: Django admin password
+    required: true
+    description: Password for the initial Django superuser.
+automation_task:
+  task_name: Deploy UniStack
+  instructions:
+    - run: docker compose version
+    - run: portacode github-setup
+    - run: git clone --recurse-submodules https://github.com/portacode/UniStack.git /opt/UniStack
+    - run: cd /opt/UniStack && ./scripts/deploy.sh
+    - run: cd /opt/UniStack && docker compose exec -T web python scripts/ensure_superuser.py
+    - wait_for: https://[exposed:8000]/health/
+      timeout: 1200
+  expose_ports:
+    - 8000
+  on_success: notify
+  on_failure: suggest_fixes

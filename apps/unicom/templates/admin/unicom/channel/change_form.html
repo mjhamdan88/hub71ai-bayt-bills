@@ -1,0 +1,57 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block after_field_sets %}
+  {{ block.super }}
+  {% if email_channel %}
+    <fieldset class="module aligned" id="email-history-import"
+              data-start-url="{{ backfill_start_url }}" data-status-url="{{ backfill_status_url }}">
+      <h2>{% trans "Inbox history import" %}</h2>
+      <div class="form-row">
+        <div style="width:100%">
+          <p>Import all existing messages from INBOX in the background. Historical messages are available for replies but do not trigger new-request automation.</p>
+          <button type="button" class="button" id="email-backfill-start">{% trans "Import inbox history" %}</button>
+          <div id="email-backfill-progress" hidden style="margin-top:1rem;max-width:48rem">
+            <progress id="email-backfill-bar" value="0" max="100" style="width:100%"></progress>
+            <p id="email-backfill-label" aria-live="polite"></p>
+          </div>
+        </div>
+      </div>
+    </fieldset>
+    <script>
+    (() => {
+      const root = document.getElementById('email-history-import');
+      const button = document.getElementById('email-backfill-start');
+      const panel = document.getElementById('email-backfill-progress');
+      const bar = document.getElementById('email-backfill-bar');
+      const label = document.getElementById('email-backfill-label');
+      const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+      let timer;
+      function render(job) {
+        if (job.status === 'not_started') return;
+        panel.hidden = false;
+        bar.value = job.progress || 0;
+        const total = job.total ? ` of ${job.total}` : '';
+        label.textContent = `${job.status}: ${job.processed || 0}${total} processed; ${job.imported || 0} imported, ${job.skipped || 0} skipped, ${job.failed || 0} failed${job.error ? ` — ${job.error}` : ''}`;
+        const active = job.status === 'pending' || job.status === 'running';
+        button.disabled = active;
+        button.textContent = active ? 'Import in progress…' : 'Import inbox history';
+        if (active && !timer) timer = setInterval(refresh, 1500);
+        if (!active && timer) { clearInterval(timer); timer = null; }
+      }
+      async function refresh() {
+        const response = await fetch(root.dataset.statusUrl, {credentials: 'same-origin'});
+        if (response.ok) render(await response.json());
+      }
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        const response = await fetch(root.dataset.startUrl, {
+          method: 'POST', credentials: 'same-origin', headers: {'X-CSRFToken': csrf}
+        });
+        render(await response.json());
+      });
+      refresh();
+    })();
+    </script>
+  {% endif %}
+{% endblock %}

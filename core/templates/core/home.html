@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UniStack · Portacode demo</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#183029;background:#f3f7f4}body{max-width:960px;margin:3rem auto;padding:0 1.25rem}header,section{margin-bottom:2rem}h1{font-size:clamp(2.5rem,7vw,4rem);margin:.4rem 0}h2{margin-top:0}p{line-height:1.6}a{color:#176b3a}.eyebrow{font-size:.85rem;letter-spacing:.12em;text-transform:uppercase}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem}.card,.demo{background:white;border:1px solid #d9e3dc;border-radius:16px;padding:1.5rem}.card h2{font-size:1.2rem}.actions{display:flex;gap:1rem;flex-wrap:wrap}textarea{display:block;box-sizing:border-box;width:100%;min-height:110px;font:inherit;border:1px solid #9db5a6;border-radius:8px;padding:.8rem;margin:.7rem 0}button,.button{display:inline-block;background:#176b3a;color:white;padding:.75rem 1rem;border:0;border-radius:8px;font:inherit;text-decoration:none;cursor:pointer}button:disabled{opacity:.6;cursor:wait}#answer{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6}.muted{font-size:.9rem;color:#52685b}code{overflow-wrap:anywhere}footer{padding:1rem 0;font-size:.85rem}
+</style>
+</head>
+<body>
+<header><p class="eyebrow">Portacode · Django starter</p><h1>Build from here.</h1><p>Messaging, customer relationships, and AI in one reusable project. Your UniStack demo is running on Portacode.</p><nav class="actions"><a class="button" href="/admin/">Open admin</a><a href="/health/">Check health</a><a href="https://portacode.com/portacode-cicd-intro/">Deployment guide</a></nav></header>
+<section class="cards" aria-label="Included applications">
+<article class="card"><h2>UniCom</h2><p>Connect conversations across web chat, email, Telegram, and WhatsApp.</p><a href="/admin/unicom/">Configure messaging →</a></article>
+<article class="card"><h2>UniCRM</h2><p>Organize contacts, companies, segments, and campaigns.</p><a href="/admin/unicrm/">Explore CRM →</a></article>
+<article class="card"><h2>UniBot</h2><p>Create assistants with tools and encrypted integration credentials.</p><a href="/admin/unibot/">Manage bots →</a></article>
+</section>
+<section class="demo"><h2>Try the local AI</h2><p>Ask a question to test the Responses API already running on your Portacode device.</p>
+{% if user.is_authenticated %}
+<form id="ai-form">{% csrf_token %}<label for="prompt">Your message</label><textarea id="prompt" name="prompt" maxlength="8000" required>Suggest three ways I could use this Django starter.</textarea><button id="send" type="submit">Send message</button></form><div id="answer" role="status" aria-live="polite"></div>
+{% else %}
+<p><a class="button" href="/admin/login/?next=/">Sign in to try AI</a></p><p class="muted">Use the administrator credentials you chose during deployment.</p>
+{% endif %}
+<p class="muted">Model: <code>{{ model }}</code>. Requests use the connected Portacode account's AI balance.</p></section>
+<section><h2>Make it yours</h2><p>Add your project features in <code>core/</code>, configure channels and credentials in the admin, and define your bots and tools in <code>data/definitions/</code>. Messaging providers need their own credentials; no external AI key is needed for this demo.</p></section>
+<footer>Built with UniStack on <a href="https://portacode.com/">Portacode</a>.</footer>
+{% if user.is_authenticated %}
+<script>
+const form=document.getElementById('ai-form');
+form.addEventListener('submit',async event=>{
+ event.preventDefault();const button=document.getElementById('send'),answer=document.getElementById('answer');
+ button.disabled=true;answer.textContent='Thinking…';
+ try{const response=await fetch('/api/ai/respond/',{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':form.querySelector('[name=csrfmiddlewaretoken]').value},body:JSON.stringify({prompt:document.getElementById('prompt').value})});
+ if(response.redirected){throw new Error('Your session expired. Sign in again.');}
+ const result=await response.json();answer.textContent=response.ok?result.response:result.error;
+ }catch(error){answer.textContent=error.message || 'Request failed. Please try again.';}finally{button.disabled=false;}
+});
+</script>
+{% endif %}
+</body></html>

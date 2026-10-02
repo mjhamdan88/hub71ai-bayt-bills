@@ -1,0 +1,328 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebChat Demo - Unicom</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .demo-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .demo-header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .demo-header h1 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .demo-header p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .user-info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .user-info p {
+            margin: 5px 0;
+            color: #1565c0;
+        }
+
+        .chat-demo-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .chat-demo-section h2 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.3em;
+        }
+
+        .chat-container-wrapper {
+            height: 700px;
+            border-radius: 0px;
+            overflow: hidden;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .feature-card h3 {
+            color: #007bff;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+        }
+
+        .feature-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-card li {
+            padding: 6px 0;
+            color: #555;
+        }
+
+        .feature-card li::before {
+            content: "✓ ";
+            color: #4CAF50;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .info-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .info-box strong {
+            color: #856404;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .chat-container-wrapper {
+                height: 600px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1>🚀 WebChat Interactive Demo</h1>
+            <p>
+                Try out the Unicom WebChat component! Send messages, upload images and audio,
+                create multiple chats, and experience all the features in action.
+            </p>
+        </div>
+
+        <div class="user-info">
+            {% if user.is_authenticated %}
+                <p><strong>👤 Logged in as:</strong> {{ user.username }} ({{ user.email }})</p>
+                <p><strong>Status:</strong> Authenticated User - Your chats are saved to your account</p>
+            {% else %}
+                <p><strong>👤 Status:</strong> Guest User (session-based)</p>
+                <p>💡 Your chat history will be preserved if you log in later!</p>
+            {% endif %}
+        </div>
+
+        <div class="info-box">
+            <strong>ℹ️ Note:</strong> This demo page is only available when Django is running with DEBUG=True.
+            It demonstrates the full WebChat functionality including multi-chat support, media uploads, and real-time messaging.
+        </div>
+
+        <div class="chat-demo-section">
+            <h2>💬 Full-Featured Chat Interface</h2>
+            <p style="margin-bottom: 20px; color: #666;">
+                Click "New Chat" to start a conversation. Try sending text, uploading images or audio files,
+                and switching between multiple chats.
+            </p>
+
+            <div class="chat-container-wrapper">
+                <script type="importmap">
+                {
+                    "imports": {
+                        "lit": "https://cdn.jsdelivr.net/npm/lit@3.2.0/+esm",
+                        "lit/directives/unsafe-html.js": "https://cdn.jsdelivr.net/npm/lit@3.2.0/directives/unsafe-html.js/+esm"
+                    }
+                }
+                </script>
+                <script type="module" src="{% static 'unicom/webchat/webchat-with-sidebar.js' %}"></script>
+                <unicom-chat-with-sidebar
+                    api-base="/unicom/webchat"
+                    theme="dark"
+                    max-messages="200"
+                    auto-refresh="5"
+                    enable-websocket-only="true"
+                    style="height: 100%; --unicom-primary-color: #2e7d32; --unicom-background-color: black;"
+                    filters="{&quot;metadata__project_id&quot;:62}"
+                    metadata-defaults="{&quot;project_id&quot;:62}">
+                </unicom-chat-with-sidebar>
+            </div>
+        </div>
+
+        <div class="features-grid">
+            <div class="feature-card">
+                <h3>📱 Messaging Features</h3>
+                <ul>
+                    <li>Send text messages</li>
+                    <li>Upload and display images</li>
+                    <li>Upload and play audio files</li>
+                    <li>HTML content rendering</li>
+                    <li>Real-time updates via WebSocket (with fallback to polling or WebSocket-only mode)</li>
+                    <li>Load earlier messages</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h3>💬 Multi-Chat Support</h3>
+                <ul>
+                    <li>View all your chats in sidebar</li>
+                    <li>Create new chats</li>
+                    <li>Switch between chats</li>
+                    <li>See last message preview</li>
+                    <li>Timestamp for each chat</li>
+                    <li>Mobile-responsive layout</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h3>🎨 Customization</h3>
+                <ul>
+                    <li>Light and dark themes</li>
+                    <li>Custom colors via CSS</li>
+                    <li>Adjustable height and width</li>
+                    <li>Configurable auto-refresh</li>
+                    <li>Custom fonts and borders</li>
+                    <li>Responsive design</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h3>🔐 User Management</h3>
+                <ul>
+                    <li>Guest user support (session)</li>
+                    <li>Authenticated user support</li>
+                    <li>Guest-to-user migration</li>
+                    <li>Automatic account linking</li>
+                    <li>Chat history preservation</li>
+                    <li>Member integration</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h3>⚡ Performance</h3>
+                <ul>
+                    <li>WebSocket push with configurable fallback or retry-only modes</li>
+                    <li>Only refreshes when visible</li>
+                    <li>Cursor-based pagination</li>
+                    <li>Smooth animations</li>
+                    <li>Optimized rendering</li>
+                    <li>Minimal network usage</li>
+                </ul>
+            </div>
+
+            <div class="feature-card">
+                <h3>🛠️ Developer Features</h3>
+                <ul>
+                    <li>LitElement web components</li>
+                    <li>Modular architecture</li>
+                    <li>Django template tag</li>
+                    <li>REST API integration</li>
+                    <li>CSRF protection</li>
+                    <li>Error handling</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="chat-demo-section">
+            <h2>📖 Usage Example</h2>
+            <p style="margin-bottom: 15px; color: #666;">
+                Embed the chat component in your Django templates with just a few lines of code:
+            </p>
+            <pre style="background: #f5f5f5; padding: 20px; border-radius: 4px; overflow-x: auto; border: 1px solid #ddd;"><code>{% verbatim %}{% load unicom_tags %}
+
+&lt;!-- Simple single-chat component --&gt;
+{% webchat_component %}
+
+&lt;!-- Multi-chat component with sidebar --&gt;
+&lt;script type="module" src="https://cdn.jsdelivr.net/npm/lit@3/+esm"&gt;&lt;/script&gt;
+&lt;script type="module" src="{% static 'unicom/webchat/webchat-with-sidebar.js' %}"&gt;&lt;/script&gt;
+&lt;unicom-chat-with-sidebar
+    theme="light"
+    auto-refresh="5"
+    style="height: 700px;"&gt;
+&lt;/unicom-chat-with-sidebar&gt;
+
+&lt;!-- With custom styling --&gt;
+&lt;unicom-chat-with-sidebar
+    theme="dark"
+    auto-refresh="3"
+    style="
+        height: 800px;
+        --unicom-primary-color: #ff5722;
+        --unicom-border-radius: 16px;
+    "&gt;
+&lt;/unicom-chat-with-sidebar&gt;
+
+&lt;!-- WebSocket-only mode (retry on failure, no polling fallback) --&gt;
+&lt;unicom-chat-with-sidebar
+    theme="light"
+    enable-websocket-only="true"
+    style="height: 700px;"&gt;
+&lt;/unicom-chat-with-sidebar&gt;{% endverbatim %}</code></pre>
+        </div>
+
+        <div class="demo-header" style="margin-top: 30px;">
+            <h2 style="margin-bottom: 15px;">🎯 Try These Actions</h2>
+            <ul style="list-style: none; padding: 0;">
+                <li style="padding: 8px 0; color: #555;">
+                    <strong>1.</strong> Click "New Chat" to start a fresh conversation
+                </li>
+                <li style="padding: 8px 0; color: #555;">
+                    <strong>2.</strong> Type a message and press Enter to send
+                </li>
+                <li style="padding: 8px 0; color: #555;">
+                    <strong>3.</strong> Click the 📎 button to upload an image or audio file
+                </li>
+                <li style="padding: 8px 0; color: #555;">
+                    <strong>4.</strong> Create multiple chats and switch between them
+                </li>
+                <li style="padding: 8px 0; color: #555;">
+                    <strong>5.</strong> Wait for the bot to respond (auto-refresh every 5 seconds)
+                </li>
+                <li style="padding: 8px 0; color: #555;">
+                    <strong>6.</strong> Try the component on mobile - the sidebar collapses automatically!
+                </li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

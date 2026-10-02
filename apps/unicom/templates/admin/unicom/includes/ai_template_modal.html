@@ -1,0 +1,93 @@
+{% load static %}
+<link rel="stylesheet" href="{% static 'unicom/css/bootstrap_scoped.css' %}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<style>
+  #unicom-ai-template-preview table,
+  #unicom-ai-template-preview tr,
+  #unicom-ai-template-preview td,
+  #unicom-ai-template-preview th,
+  #unicom-ai-template-preview tbody,
+  #unicom-ai-template-preview thead,
+  #unicom-ai-template-preview tfoot,
+  #unicom-ai-template-custom-preview table,
+  #unicom-ai-template-custom-preview tr,
+  #unicom-ai-template-custom-preview td,
+  #unicom-ai-template-custom-preview th,
+  #unicom-ai-template-custom-preview tbody,
+  #unicom-ai-template-custom-preview thead,
+  #unicom-ai-template-custom-preview tfoot {
+    all: unset;
+    display: revert;
+  }
+
+  #unicom-ai-template-preview table,
+  #unicom-ai-template-custom-preview table {
+    border-collapse: collapse;
+    width: auto;
+  }
+</style>
+
+<div class="unicom-bootstrap-scope">
+  <div class="modal fade" id="unicom-ai-template-modal" tabindex="-1" aria-labelledby="unicomAiTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="unicomAiTemplateModalLabel">Insert AI-Powered Template</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label for="unicom-ai-template-select" class="form-label">Choose a template</label>
+            <select class="form-select" id="unicom-ai-template-select" style="line-height: 1.5; padding-top: 0.5em; padding-bottom: 0.5em; min-height: 2.5em;">
+              <option value="">Loading templates...</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <a class="btn btn-link p-0" data-bs-toggle="collapse" href="#unicom-ai-template-original-collapse" role="button" aria-expanded="true" aria-controls="unicom-ai-template-original-collapse" id="unicom-ai-template-original-toggle">
+              <span id="unicom-ai-template-original-toggle-text">Hide</span> Original Template
+            </a>
+            <div class="collapse show" id="unicom-ai-template-original-collapse">
+              <div id="unicom-ai-template-preview" style="border:1px solid #ddd; border-radius:4px; min-height:60px; max-height:200px; overflow:auto; background:#fafbfc; padding:10px; margin-bottom:10px;"></div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Customized Preview</label>
+            <div id="unicom-ai-template-custom-preview" style="border:1px solid #b3e5fc; border-radius:4px; min-height:60px; max-height:200px; overflow:auto; background:#e3f7fd; padding:10px; margin-bottom:10px;"></div>
+          </div>
+          <div class="mb-3">
+            <label for="unicom-ai-template-model-select" class="form-label">AI Model (Optional)</label>
+            <select class="form-select" id="unicom-ai-template-model-select" style="line-height: 1.5; padding-top: 0.5em; padding-bottom: 0.5em; min-height: 2.5em;">
+              <option value="">None (Insert template as-is)</option>
+              <option value="gpt-4o">GPT‑4o (Omni)</option>
+              <option value="gpt-4o-mini">GPT‑4o Mini</option>
+              <option value="gpt-4.1">GPT‑4.1</option>
+              <option value="gpt-4.1-mini">GPT‑4.1 Mini</option>
+              <option value="gpt-4.1-nano">GPT‑4.1 Nano</option>
+              <option value="gpt-4.5">GPT‑4.5 (Orion)</option>
+              <option value="o1">o1</option>
+              <option value="o1-mini">o1 Mini</option>
+              <option value="o1-pro">o1 Pro</option>
+              <option value="o3">o3</option>
+              <option value="o4-mini">o4 Mini</option>
+              <option value="o4-mini-high">o4 Mini High</option>
+              <option value="gpt-3.5-turbo">GPT‑3.5 Turbo</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label for="unicom-ai-template-prompt" class="form-label">Customization Prompt</label>
+            <textarea id="unicom-ai-template-prompt" class="form-control" rows="6" data-tinymce></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="unicom-ai-template-generate">Generate</button>
+          <button type="button" class="btn btn-success" id="unicom-ai-template-insert" disabled>Insert</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 

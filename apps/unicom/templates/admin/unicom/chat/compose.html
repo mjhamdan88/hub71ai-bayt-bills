@@ -1,0 +1,549 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block extrastyle %}
+{{ block.super }}
+{% include "admin/unicom/includes/loading_indicators.html" %}
+<style>
+.form-row {
+    margin-bottom: 1em;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.form-row label {
+    display: block;
+    padding: 0 10px 0 0;
+    margin-bottom: 5px;
+    font-weight: bold;
+    color: var(--body-quiet-color);
+}
+
+.form-row input[type="text"],
+.form-row textarea {
+    width: 100%;
+    padding: 8px;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--body-bg);
+    color: var(--body-fg);
+}
+
+.form-row select {
+    width: 100%;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--body-bg);
+    color: var(--body-fg);
+    height: 38px;
+    line-height: 1.5;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23666' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 32px;
+}
+
+.form-row select:focus {
+    border-color: var(--body-quiet-color);
+    outline: none;
+}
+
+.form-row input[type="text"]:focus,
+.form-row textarea:focus {
+    border-color: var(--body-quiet-color);
+    outline: none;
+}
+
+#compose-form-container {
+    padding: 10px;
+    margin: 10px;
+    background: var(--body-bg);
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.submit-row {
+    margin-top: 20px;
+    text-align: right;
+    padding: 12px;
+    background: var(--darkened-bg);
+    border-radius: 4px;
+}
+
+.submit-row input[type="submit"] {
+    background: var(--button-bg);
+    padding: 10px 15px;
+    color: var(--button-fg);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.submit-row input[type="submit"]:hover {
+    background: var(--button-hover-bg);
+}
+
+.tox-tinymce {
+    border-radius: 4px !important;
+}
+
+/* Dark mode support for select dropdown arrow */
+@media (prefers-color-scheme: dark) {
+    .form-row select {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23fff' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14L2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+    }
+}
+
+.required {
+    color: #ba2121;
+    font-weight: bold;
+    margin-left: 2px;
+}
+
+/* Add asterisk to required fields that use TinyMCE */
+.tox-tinymce.required {
+    border-color: #ba2121 !important;
+}
+
+/* Style the HTML5 validation popup */
+input:invalid, textarea:invalid {
+    box-shadow: none; /* Remove default red shadow in Firefox */
+}
+
+/* Custom validation styling */
+input:not(:placeholder-shown):invalid,
+textarea:not(:placeholder-shown):invalid {
+    border-color: #ba2121;
+}
+
+input:not(:placeholder-shown):valid,
+textarea:not(:placeholder-shown):valid {
+    border-color: #72a338;
+}
+
+@media (max-width: 767px) {
+    #compose-form-container {
+        padding: 10px 0;
+        margin: 10px 0;
+    }
+    
+    .form-row {
+        margin-bottom: 0.75em;
+        padding: 0 10px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Home</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label='unicom' %}">Unicom</a>
+    &rsaquo; <a href="{% url 'admin:unicom_chat_changelist' %}">Chat</a>
+    &rsaquo; Compose Message
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="module" id="compose-form-container">
+    <h2>Compose Message</h2>
+    
+    <form method="post" id="compose-form">
+        {% csrf_token %}
+        <input type="hidden" name="timezone" id="timezone-input">
+        <input type="hidden" name="skip_reacher" value="1">
+        
+        <div class="form-row">
+            <label for="channel">Channel:</label>
+            <select name="channel" id="channel" required>
+                {% if channels|length != 1 %}
+                    <option value="">Select a channel</option>
+                {% endif %}
+                {% for channel in channels %}
+                    <option value="{{ channel.id }}" data-platform="{{ channel.platform }}" {% if channel.id == form_data.channel or channels|length == 1 and not form_data.channel %}selected{% endif %}>
+                        {{ channel.name }} ({{ channel.platform }})
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <!-- Telegram-specific fields -->
+        <div id="telegram-fields" style="display: none;">
+            <div class="form-row">
+                <label for="chat_id">Chat ID: <span class="required">*</span></label>
+                <input type="text" name="chat_id" id="chat_id" value="{{ form_data.chat_id }}">
+            </div>
+            <div class="form-row">
+                <label for="telegram-text">Message: <span class="required">*</span></label>
+                <textarea name="text" id="telegram-text" rows="5">{{ form_data.text }}</textarea>
+            </div>
+        </div>
+
+        <!-- Email-specific fields -->
+        <div id="email-fields" style="display: none;">
+            <div class="form-row">
+                <label for="to">To: <span class="required">*</span></label>
+                <input type="text" name="to" id="to" placeholder="Comma-separated email addresses" value="{{ form_data.to }}">
+            </div>
+            <div class="form-row">
+                <label for="cc">CC:</label>
+                <input type="text" name="cc" id="cc" placeholder="Comma-separated email addresses" value="{{ form_data.cc }}">
+            </div>
+            <div class="form-row">
+                <label for="bcc">BCC:</label>
+                <input type="text" name="bcc" id="bcc" placeholder="Comma-separated email addresses" value="{{ form_data.bcc }}">
+            </div>
+            <div class="form-row">
+                <label for="subject">Subject: <span class="required">*</span></label>
+                <input type="text" name="subject" id="subject" value="{{ form_data.subject }}">
+            </div>
+            <div class="form-row">
+                <label for="email-body">Message: <span class="required">*</span></label>
+                <textarea id="email-body" name="html">{{ form_data.html }}</textarea>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <label for="schedule-datetime">Schedule For:</label>
+            <input type="datetime-local" name="send_at" id="schedule-datetime" value="{{ form_data.send_at }}" min="">
+        </div>
+
+        <div class="submit-row">
+            <input type="submit" value="Send Now" class="default" id="submit-button">
+        </div>
+    </form>
+</div>
+
+{% if tinymce_api_key %}
+  <script src="https://cdn.tiny.cloud/1/{{ tinymce_api_key }}/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+{% else %}
+  {# Fallback to TinyMCE's limited no-api-key usage #}
+  <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+{% endif %}
+<script src="{% static 'unicom/js/tinymce_init.js' %}"></script>
+<script src="{% static 'unicom/js/tinymce_ai_template.js' %}"></script>
+{% include "admin/unicom/includes/ai_template_modal.html" %}
+
+<script>
+let editor = null;
+
+// Function to get user's timezone
+function getUserTimezone() {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+// Function to format relative time
+function formatRelativeTime(dateString) {
+    // Create Date objects for comparison
+    const scheduledDate = new Date(dateString);
+    const now = new Date();
+    
+    // Reset time parts to start of day for day comparison
+    const scheduledDay = new Date(scheduledDate).setHours(0,0,0,0);
+    const today = new Date(now).setHours(0,0,0,0);
+    
+    // Calculate difference in days
+    const diffDays = Math.floor((scheduledDay - today) / (1000 * 60 * 60 * 24));
+    
+    // Format the time part
+    const timeStr = scheduledDate.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+    });
+    
+    // If it's in the past
+    if (scheduledDate < now) {
+        return 'Send Now'; // Past time defaults to Send Now
+    }
+    
+    // If it's today
+    if (diffDays === 0) {
+        return `Send Today at ${timeStr}`;
+    }
+    
+    // If it's tomorrow
+    if (diffDays === 1) {
+        return `Send Tomorrow at ${timeStr}`;
+    }
+    
+    // If it's within the next 6 days
+    if (diffDays > 1 && diffDays < 7) {
+        const dayName = scheduledDate.toLocaleDateString('en-US', { weekday: 'long' });
+        return `Send ${dayName} at ${timeStr}`;
+    }
+    
+    // If it's further in the future
+    const dateStr = scheduledDate.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric'
+    });
+    return `Send on ${dateStr} at ${timeStr}`;
+}
+
+// Function to update submit button text
+function updateSubmitButtonText() {
+    const scheduleDateTime = document.getElementById('schedule-datetime').value;
+    const submitButton = document.getElementById('submit-button');
+    
+    if (!scheduleDateTime) {
+        submitButton.value = 'Send Now';
+    } else {
+        submitButton.value = formatRelativeTime(scheduleDateTime);
+    }
+}
+
+// Function to update URL parameters
+function updateUrlParams(params) {
+    const url = new URL(window.location.href);
+    Object.entries(params).forEach(([key, value]) => {
+        if (value) {
+            url.searchParams.set(key, value);
+        } else {
+            url.searchParams.delete(key);
+        }
+    });
+    window.history.replaceState({}, '', url);
+}
+
+// Function to get URL parameters
+function getUrlParams() {
+    const params = new URLSearchParams(window.location.search);
+    return Object.fromEntries(params.entries());
+}
+
+// Function to pre-fill form fields from URL parameters
+function prefillFromUrl() {
+    const params = getUrlParams();
+    
+    // Pre-fill channel and trigger change event if specified
+    if (params.channel) {
+        const channelSelect = document.getElementById('channel');
+        channelSelect.value = params.channel;
+        channelSelect.dispatchEvent(new Event('change'));
+    }
+    
+    // Pre-fill Telegram fields
+    if (params.chat_id) {
+        document.getElementById('chat_id').value = params.chat_id;
+    }
+    if (params.text) {
+        document.getElementById('telegram-text').value = params.text;
+    }
+    
+    // Pre-fill Email fields
+    if (params.to) {
+        document.getElementById('to').value = params.to;
+    }
+    if (params.cc) {
+        document.getElementById('cc').value = params.cc;
+    }
+    if (params.bcc) {
+        document.getElementById('bcc').value = params.bcc;
+    }
+    if (params.subject) {
+        document.getElementById('subject').value = params.subject;
+    }
+    // Pre-fill schedule datetime
+    if (params.send_at) {
+        document.getElementById('schedule-datetime').value = params.send_at;
+    }
+    // Note: HTML content should be handled with care due to potential security issues
+    if (params.html && editor) {
+        editor.setContent(decodeURIComponent(params.html));
+    }
+}
+
+function initEditor() {
+    const channelId = document.getElementById('channel').value;
+    UnicomTinyMCE.init('#email-body', {
+        setup: function (ed) {
+            editor = ed;
+            // If there's HTML content in URL params, set it after editor is ready
+            const params = getUrlParams();
+            if (params.html) {
+                ed.setContent(decodeURIComponent(params.html));
+            }
+        },
+        channel_id: channelId || null
+    });
+}
+
+// Function to get current datetime in YYYY-MM-DDThh:mm format
+function getCurrentDateTime() {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 1); // Set to next minute
+    return now.toISOString().slice(0, 16);
+}
+
+// Function to validate and handle datetime changes
+function handleDateTimeChange(e) {
+    const input = e.target;
+    const selectedDate = new Date(input.value);
+    const now = new Date();
+    
+    if (selectedDate <= now) {
+        input.value = ''; // Clear invalid value
+        alert('Please select a future date and time.');
+    }
+    
+    updateSubmitButtonText();
+}
+
+// Function to update datetime min attribute
+function updateDateTimeMin() {
+    const scheduleDateTime = document.getElementById('schedule-datetime');
+    scheduleDateTime.min = getCurrentDateTime();
+}
+
+// Initialize editor when form becomes visible
+document.addEventListener('DOMContentLoaded', function() {
+    const emailFields = document.getElementById('email-fields');
+    const channelSelect = document.getElementById('channel');
+    const form = document.getElementById('compose-form');
+    const globalLoadingOverlay = document.querySelector('.global-loading-overlay');
+    const scheduleDateTime = document.getElementById('schedule-datetime');
+    
+    // Set the timezone input value
+    document.getElementById('timezone-input').value = getUserTimezone();
+    
+    // Function to toggle required attributes based on platform
+    function toggleRequiredFields(platform) {
+        // First, remove required from all fields
+        const allInputs = form.querySelectorAll('input, textarea');
+        allInputs.forEach(input => input.removeAttribute('required'));
+        
+        // Then add required to visible fields based on platform
+        if (platform === 'Email') {
+            document.getElementById('to').setAttribute('required', 'required');
+            document.getElementById('subject').setAttribute('required', 'required');
+        } else if (platform === 'Telegram') {
+            document.getElementById('chat_id').setAttribute('required', 'required');
+            document.getElementById('telegram-text').setAttribute('required', 'required');
+        }
+    }
+    
+    // Handle form submission
+    form.addEventListener('submit', function(e) {
+        e.preventDefault(); // Prevent form submission initially
+        
+        const platform = channelSelect.options[channelSelect.selectedIndex].getAttribute('data-platform');
+        
+        // Validate form based on platform
+        if (platform === 'Email') {
+            const emailContent = editor.getContent().trim();
+            if (!emailContent) {
+                // Hide loading overlay if it was shown by another listener
+                if (globalLoadingOverlay) {
+                    globalLoadingOverlay.classList.add('hidden');
+                }
+                // Re-enable any disabled submit buttons
+                form.querySelectorAll('input[type="submit"], button[type="submit"]').forEach(btn => {
+                    btn.disabled = false;
+                    if (btn.tagName === 'INPUT') {
+                        btn.value = 'Send Message';
+                    }
+                });
+                alert('Please enter a message body.');
+                editor.focus();
+                return; // Abort submission
+            }
+        }
+        
+        // If we get here, all validation passed
+        // Now show loading and submit
+        if (globalLoadingOverlay) {
+            globalLoadingOverlay.querySelector('.loading-text').textContent = 'Sending...';
+            globalLoadingOverlay.classList.remove('hidden');
+        }
+        
+        // Small delay to ensure loading indicator is visible
+        setTimeout(() => {
+            form.submit();
+        }, 50);
+    });
+    
+    channelSelect.addEventListener('change', function() {
+        const platform = this.options[this.selectedIndex].getAttribute('data-platform');
+        const showEmail = platform === 'Email';
+        const showTelegram = platform === 'Telegram';
+        
+        document.getElementById('telegram-fields').style.display = showTelegram ? 'block' : 'none';
+        emailFields.style.display = showEmail ? 'block' : 'none';
+        
+        // Toggle required fields based on selected platform
+        toggleRequiredFields(platform);
+        
+        if (showEmail) {
+            // Remove existing editor if any
+            if (editor) {
+                editor.remove();
+                editor = null;
+            }
+            initEditor();
+        }
+        
+        // Update URL with channel and platform
+        updateUrlParams({
+            'channel': this.value,
+            'platform': platform
+        });
+    });
+    
+    // Always prefill from URL parameters first
+    prefillFromUrl();
+
+    // After prefill, if channel is set, trigger change event to show correct fields
+    if (channelSelect.value) {
+        channelSelect.dispatchEvent(new Event('change'));
+    }
+    
+    // Add input event listeners to update URL parameters
+    const urlUpdatingInputs = {
+        'channel': channelSelect,
+        'chat_id': document.getElementById('chat_id'),
+        'text': document.getElementById('telegram-text'),
+        'to': document.getElementById('to'),
+        'cc': document.getElementById('cc'),
+        'bcc': document.getElementById('bcc'),
+        'subject': document.getElementById('subject'),
+        'send_at': document.getElementById('schedule-datetime')
+    };
+    
+    Object.entries(urlUpdatingInputs).forEach(([param, element]) => {
+        if (element) {
+            element.addEventListener('input', function() {
+                updateUrlParams({ [param]: this.value });
+            });
+        }
+    });
+
+    // Set initial min datetime and update it periodically
+    updateDateTimeMin();
+    setInterval(updateDateTimeMin, 60000); // Update every minute
+    
+    // Replace the simple input listener with the validation handler
+    scheduleDateTime.addEventListener('change', handleDateTimeChange);
+    
+    // Initial update of submit button text
+    updateSubmitButtonText();
+    
+    // Validate any preset datetime from URL params
+    if (scheduleDateTime.value) {
+        const selectedDate = new Date(scheduleDateTime.value);
+        const now = new Date();
+        if (selectedDate <= now) {
+            scheduleDateTime.value = ''; // Clear invalid value
+            updateSubmitButtonText();
+        }
+    }
+});
+</script>
+{% endblock %} 

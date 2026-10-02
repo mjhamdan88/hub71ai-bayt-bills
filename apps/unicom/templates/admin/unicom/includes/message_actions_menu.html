@@ -1,0 +1,198 @@
+{# Modular context menu for message actions. Usage: include with message in context as 'message' #}
+<style>
+.message-actions-menu .menu-action {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+  color: var(--link-fg);
+  text-decoration: none;
+  font: inherit;
+  transition: background 0.15s;
+}
+/* Ensure the actions button is visible on tool messages */
+.message-tool .message-actions-btn {
+  opacity: 1 !important;
+  z-index: 15;
+}
+.message-actions-menu .menu-action:hover {
+  background: var(--selected-row, #f0f0f0);
+  text-decoration: none;
+}
+</style>
+<div class="message-actions-menu-container" style="position: absolute; top: 8px; right: 12px; z-index: 10;">
+  <button class="message-actions-btn" title="More actions" style="background: none; border: none; cursor: pointer; font-size: 1.2em; color: var(--body-quiet-color);">
+    <i class="fas fa-ellipsis-v"></i>
+  </button>
+  <div class="message-actions-menu" style="display: none; position: absolute; top: 28px; right: 0; background: var(--form-bg); border: 1px solid var(--border-color); border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); min-width: 180px;">
+    {# Always show Copy HTML for email, or if html exists #}
+    {% if message.html or message.platform == 'Email' %}
+      <button class="menu-action message-action-copy-html" data-message-id="{{ message.id }}">Copy HTML</button>
+    {% endif %}
+    <button class="menu-action message-action-copy-text" data-message-id="{{ message.id }}">Copy Text</button>
+    {% if message.platform == 'Email' and message.subject %}
+      <button class="menu-action message-action-copy-subject" data-message-id="{{ message.id }}" data-subject="{{ message.subject|escapejs }}">Copy Subject</button>
+    {% endif %}
+    {% if message.platform == 'Email' %}
+      {% if message.to or message.cc or message.bcc %}
+        <button class="menu-action message-action-copy-recipients" data-message-id="{{ message.id }}" data-to="{{ message.to|join:', '|escapejs }}" data-cc="{{ message.cc|join:', '|escapejs }}" data-bcc="{{ message.bcc|join:', '|escapejs }}">Copy Recipients</button>
+      {% endif %}
+    {% endif %}
+    <button class="menu-action message-action-copy-id" data-message-id="{{ message.id }}">Copy Message ID</button>
+    <button class="menu-action message-action-copy-llm-chat" data-message-id="{{ message.id }}" data-mode="chat">Copy As LLM Chat (Chat Mode)</button>
+    <button class="menu-action message-action-copy-llm-thread" data-message-id="{{ message.id }}" data-mode="thread">Copy As LLM Chat (Thread Mode)</button>
+    {% if message.platform == 'Email' %}
+      <button class="menu-action message-action-download-pdf" data-message-id="{{ message.id }}">Download PDF</button>
+    {% endif %}
+    <a href="/admin/unicom/message/{{ message.id }}/change/" target="_blank" class="menu-action">View Message Details</a>
+  </div>
+</div>
+<script>
+(function() {
+  // Toggle menu directly on button click
+  var buttons = document.querySelectorAll('.message-actions-btn');
+
+  buttons.forEach(function(btn) {
+    // Check if button already has our event listener
+    if (btn.hasAttribute('data-listener-attached')) {
+      return;
+    }
+
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var container = btn.closest('.message-actions-menu-container');
+      var menu = container ? container.querySelector('.message-actions-menu') : null;
+      if (menu) {
+        var isOpen = menu.style.display === 'block';
+        // Close all other menus
+        document.querySelectorAll('.message-actions-menu').forEach(function(m) {
+          m.style.display = 'none';
+        });
+        menu.style.display = isOpen ? 'none' : 'block';
+      }
+    });
+
+    // Mark button as having event listener
+    btn.setAttribute('data-listener-attached', 'true');
+  });
+
+  // Hide all menus if clicking outside
+  document.addEventListener('click', function(e) {
+    document.querySelectorAll('.message-actions-menu').forEach(function(m) {
+      m.style.display = 'none';
+    });
+  });
+  // Copy HTML
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('message-action-copy-html')) {
+      var msgId = e.target.getAttribute('data-message-id');
+      var msgElem = document.getElementById('message_' + msgId);
+      var htmlElem = msgElem ? msgElem.querySelector('.message-content') : null;
+      if (htmlElem) {
+        var html = htmlElem.innerHTML;
+        navigator.clipboard.writeText(html);
+      }
+      e.target.closest('.message-actions-menu').style.display = 'none';
+      e.stopPropagation();
+    }
+  });
+  // Copy Text
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('message-action-copy-text')) {
+      var msgId = e.target.getAttribute('data-message-id');
+      var msgElem = document.getElementById('message_' + msgId);
+      var textElem = msgElem ? msgElem.querySelector('pre') : null;
+      var text = textElem ? textElem.innerText : '';
+      if (!text && msgElem) {
+        // fallback: try .message-content (for html emails)
+        var htmlElem = msgElem.querySelector('.message-content');
+        if (htmlElem) text = htmlElem.innerText;
+      }
+      if (!text && msgElem) {
+        // fallback: try tool call/response messages
+        var toolElem = msgElem.querySelector('.tool-call-message, .tool-response-message');
+        if (toolElem) text = toolElem.innerText;
+      }
+      if (text) navigator.clipboard.writeText(text);
+      e.target.closest('.message-actions-menu').style.display = 'none';
+      e.stopPropagation();
+    }
+  });
+  // Copy Subject
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('message-action-copy-subject')) {
+      var subject = e.target.getAttribute('data-subject');
+      if (subject) navigator.clipboard.writeText(subject);
+      e.target.closest('.message-actions-menu').style.display = 'none';
+      e.stopPropagation();
+    }
+  });
+  // Copy Recipients
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('message-action-copy-recipients')) {
+      var to = e.target.getAttribute('data-to');
+      var cc = e.target.getAttribute('data-cc');
+      var bcc = e.target.getAttribute('data-bcc');
+      var recipients = '';
+      if (to) recipients += 'To: ' + to + '\n';
+      if (cc) recipients += 'Cc: ' + cc + '\n';
+      if (bcc) recipients += 'Bcc: ' + bcc + '\n';
+      if (recipients) navigator.clipboard.writeText(recipients.trim());
+      e.target.closest('.message-actions-menu').style.display = 'none';
+      e.stopPropagation();
+    }
+  });
+  // Copy ID
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('message-action-copy-id')) {
+      var msgId = e.target.getAttribute('data-message-id');
+      navigator.clipboard.writeText(msgId);
+      e.target.closest('.message-actions-menu').style.display = 'none';
+      e.stopPropagation();
+    }
+  });
+  // Download PDF
+  document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('message-action-download-pdf')) {
+      var msgId = e.target.getAttribute('data-message-id');
+      // Download from backend endpoint (to be implemented)
+      window.open(`/admin/unicom/message/${msgId}/download_pdf/`, '_blank');
+      e.target.closest('.message-actions-menu').style.display = 'none';
+      e.stopPropagation();
+    }
+  });
+  // Copy As LLM Chat
+  if (!window.llmChatListenerAttached) {
+    document.addEventListener('click', function(e) {
+      if (e.target.classList.contains('message-action-copy-llm-chat') || e.target.classList.contains('message-action-copy-llm-thread')) {
+        var msgId = e.target.getAttribute('data-message-id');
+        var mode = e.target.getAttribute('data-mode');
+        var url = `/unicom/api/message/${msgId}/as_llm_chat/?mode=${mode}`;
+
+        fetch(url)
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              // Show the text in a prompt for manual copying
+              prompt('Copy this text manually:', data.formatted_json);
+            } else {
+              console.error('API error:', data.error);
+              alert('Error: ' + data.error);
+            }
+          })
+          .catch(err => {
+            console.error('Fetch error:', err);
+            alert('Failed to fetch LLM chat data');
+          });
+
+        e.target.closest('.message-actions-menu').style.display = 'none';
+        e.stopPropagation();
+      }
+    });
+    window.llmChatListenerAttached = true;
+  }
+})();
+</script> 

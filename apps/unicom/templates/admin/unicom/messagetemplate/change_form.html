@@ -1,0 +1,11 @@
+{% extends "admin/change_form.html" %}
+
+{% load static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <script src="https://cdn.tiny.cloud/1/{{ tinymce_api_key }}/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script src="{% static 'unicom/js/tinymce_init.js' %}"></script>
+    <script src="{% static 'unicom/js/tinymce_ai_template.js' %}"></script>
+    {% include "admin/unicom/includes/ai_template_modal.html" %}
+{% endblock %} 

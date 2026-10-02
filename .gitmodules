@@ -1,0 +1,6 @@
+[submodule "apps/unicom"]
+	path = apps/unicom
+	url = https://github.com/meena-erian/unicom.git
+[submodule "apps/unibot"]
+	path = apps/unibot
+	url = https://github.com/meena-erian/unibot.git

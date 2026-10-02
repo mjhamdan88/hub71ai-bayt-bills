@@ -1,0 +1,661 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+
+{% block title %}Lead Search (GetProspect) | {{ block.super }}{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@yaireo/tagify/dist/tagify.css">
+<style>
+:root {
+  --tag-include-bg: #e6ffed;
+  --tag-include-border: #34c759;
+  --tag-include-text: #0b3d14;
+  --tag-exclude-bg: #ffecec;
+  --tag-exclude-border: #ff4d4f;
+  --tag-exclude-text: #7d0b0b;
+}
+.lead-search h1 {
+  margin-bottom: .2rem;
+}
+.lead-search p.lead-copy {
+  color: var(--body-quiet-color);
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+.lead-search-layout {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 18px;
+}
+.filter-panel {
+  background: var(--body-bg);
+  border: 1px solid var(--hairline-color);
+  border-radius: 10px;
+  padding: 14px;
+  position: sticky;
+  top: 18px;
+  align-self: start;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.filter-panel h2 {
+  margin: 0 0 8px 0;
+}
+.filter-panel p.description {
+  margin: 0 0 12px 0;
+  color: var(--body-quiet-color);
+}
+.filter {
+  margin-bottom: 12px;
+}
+.filter label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.filter small {
+  color: var(--body-quiet-color);
+  font-weight: normal;
+}
+.tagify {
+  min-height: 44px;
+  width: 100%;
+}
+.tagify__input {
+  min-width: 140px;
+}
+.tagify__tag {
+  padding: 2px 6px;
+}
+.tagify__tag.include { background: var(--tag-include-bg); border-color: var(--tag-include-border); color: var(--tag-include-text); }
+.tagify__tag.exclude { background: var(--tag-exclude-bg); border-color: var(--tag-exclude-border); color: var(--tag-exclude-text); }
+.tagify__tag .tagify__tag-text {
+  padding-right: 0.35rem;
+}
+.tagify__tag .toggle-exclude {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: inherit;
+}
+.structured-block {
+  border-top: 1px solid var(--hairline-color);
+  padding-top: 12px;
+  margin-top: 4px;
+}
+.block-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.chip {
+  border: 1px solid var(--hairline-color);
+  background: var(--darkened-bg);
+  border-radius: 14px;
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all .12s ease-in-out;
+  font-size: 0.9rem;
+}
+.chip.active {
+  background: #e6f2ff;
+  border-color: #2684ff;
+  color: #0b3d14;
+}
+.inline-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+.inline-fields label {
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+.inline-fields input,
+.inline-fields select {
+  width: 100%;
+  box-sizing: border-box;
+}
+.help-text {
+  color: var(--body-quiet-color);
+  font-size: .85rem;
+  margin: 2px 0 8px 0;
+}
+.actions {
+  margin-top: 12px;
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+}
+.actions .secondary {
+  background: var(--darkened-bg);
+  border: 1px solid var(--hairline-color);
+  color: inherit;
+}
+.results-pane {
+  border: 1px solid var(--hairline-color);
+  border-radius: 10px;
+  background: var(--body-bg);
+  padding: 12px;
+  min-height: 480px;
+}
+.results-pane h3 {
+  margin-top: 0;
+}
+.results-summary {
+  margin: 0 0 .75rem 0;
+}
+table.results-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.results-table th,
+table.results-table td {
+  padding: .55rem .6rem;
+  border-bottom: 1px solid var(--hairline-color);
+  text-align: left;
+}
+table.results-table th {
+  background: var(--darkened-bg);
+}
+.tag {
+  display: inline-block;
+  padding: .1rem .4rem;
+  border-radius: 10px;
+  background: var(--darkened-bg);
+  font-size: .82rem;
+}
+.hidden-fields {
+  display: none;
+}
+.field-error {
+  color: #c00;
+  font-size: 0.9rem;
+  margin-top: 2px;
+}
+@media (max-width: 900px) {
+  .lead-search-layout {
+    grid-template-columns: 1fr;
+  }
+  .filter-panel {
+    position: static;
+  }
+}
+.tagify__dropdown {
+  z-index: 10000;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{{ {
+  "industries": industries,
+  "seniority": seniority_levels,
+  "company_types": company_types,
+}|json_script:"lead-search-enums-json" }}
+<div class="lead-search">
+  <h1>Lead Search (GetProspect)</h1>
+  <p class="lead-copy">
+    Run a GetProspect contact search using the configured <code>GETPROSPECT_API_KEY</code>. Filters mirror the bot tool; results are stored in the CRM.
+  </p>
+
+  {% if error %}
+    <ul class="messagelist"><li class="error">{{ error }}</li></ul>
+  {% endif %}
+  {% if note %}
+    <ul class="messagelist"><li>{{ note }}</li></ul>
+  {% endif %}
+
+  <div class="lead-search-layout">
+    <form method="post" novalidate id="lead-search-form" class="filter-panel">
+      {% csrf_token %}
+      <div class="hidden-fields">
+        {{ form.position }}
+        {{ form.departments }}
+        {{ form.seniority }}
+        {{ form.contact_location }}
+        {{ form.company_locations }}
+        {{ form.industries }}
+        {{ form.company_types }}
+        {{ form.company_keywords }}
+        {{ form.technologies }}
+        {{ form.contact_names }}
+        {{ form.contact_keywords }}
+        {{ form.company_domain }}
+        {{ form.company_name }}
+      </div>
+      <h2>Filters</h2>
+      <p class="description">Include/exclude tags use GetProspect enums where available. Fields without enums accept free text.</p>
+      <div id="tag-filter-root"></div>
+
+      <div class="structured-block">
+        <div class="block-title">Employee count <small class="help-text">Pick predefined ranges or numeric bounds.</small></div>
+        <div class="chip-row" id="employee-range-chips"></div>
+        <div class="hidden-fields">{{ form.company_size_ranges }}</div>
+        {% if form.company_size_ranges.errors %}<div class="field-error">{{ form.company_size_ranges.errors }}</div>{% endif %}
+        <div class="inline-fields">
+          <div>
+            <label for="{{ form.company_size_min.id_for_label }}">Min employees</label>
+            {{ form.company_size_min }}
+            {% if form.company_size_min.errors %}<div class="field-error">{{ form.company_size_min.errors }}</div>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.company_size_max.id_for_label }}">Max employees</label>
+            {{ form.company_size_max }}
+            {% if form.company_size_max.errors %}<div class="field-error">{{ form.company_size_max.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="structured-block">
+        <div class="block-title">Founded year</div>
+        <div class="inline-fields">
+          <div>
+            <label for="{{ form.founded_from.id_for_label }}">From</label>
+            {{ form.founded_from }}
+            {% if form.founded_from.errors %}<div class="field-error">{{ form.founded_from.errors }}</div>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.founded_to.id_for_label }}">To</label>
+            {{ form.founded_to }}
+            {% if form.founded_to.errors %}<div class="field-error">{{ form.founded_to.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="structured-block">
+        <div class="inline-fields">
+          <div>
+            <label for="{{ form.email_status.id_for_label }}">Email status</label>
+            {{ form.email_status }}
+            {% if form.email_status.errors %}<div class="field-error">{{ form.email_status.errors }}</div>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.request_type.id_for_label }}">Result scope</label>
+            {{ form.request_type }}
+            <div class="help-text">{{ form.request_type.help_text }}</div>
+            {% if form.request_type.errors %}<div class="field-error">{{ form.request_type.errors }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="inline-fields">
+          <div>
+            <label for="{{ form.page_size.id_for_label }}">Page size (max 50)</label>
+            {{ form.page_size }}
+            {% if form.page_size.errors %}<div class="field-error">{{ form.page_size.errors }}</div>{% endif %}
+          </div>
+          <div>
+            <label for="{{ form.page_number.id_for_label }}">Page number</label>
+            {{ form.page_number }}
+            {% if form.page_number.errors %}<div class="field-error">{{ form.page_number.errors }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" class="button default">Search</button>
+        <button type="button" class="button secondary" id="clear-tags">Clear tags</button>
+      </div>
+    </form>
+
+    <div class="results-pane">
+      {% if results %}
+        <h3>Results</h3>
+        <div class="results-summary">
+          <strong>{{ results.total }}</strong> lead{{ results.total|default:0|pluralize }} found.
+          {% if results.page %}Page {{ results.page }}{% endif %}{% if results.page_size %} · Showing up to {{ results.page_size }}{% endif %}.
+          Persisted {{ results.persisted }} lead{{ results.persisted|pluralize }}.
+          {% if results.persist_errors and results.persist_errors|length > 0 %}
+            <div class="errorlist">
+              {% for err in results.persist_errors %}
+                <div>{{ err }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <div class="pagination-controls" style="margin-top: 0.5rem; display: flex; align-items: center; gap: .75rem;">
+            <button type="button" id="pagination-prev" class="button" {% if results.page|default:1 <= 1 %}disabled{% endif %}>Previous</button>
+            <span>Page {{ results.page|default:1 }} of {{ total_pages|default:1 }}</span>
+            <button type="button" id="pagination-next" class="button" {% if results.page|default:1 >= total_pages|default:1 %}disabled{% endif %}>Next</button>
+          </div>
+        </div>
+
+        <table class="results-table">
+          <thead>
+            <tr>
+              <th>Contact Insight ID</th>
+              <th>Contact Name</th>
+              <th>Contact Position</th>
+              <th>Contact LinkedIn</th>
+              <th>Contact Saved</th>
+              <th>Contact CRM</th>
+              <th>Company Name</th>
+              <th>Company Domain</th>
+              <th>Company Industry</th>
+              <th>Company Size</th>
+              <th>Company Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for lead in results.leads %}
+              <tr>
+                <td>{{ lead.insight_id|default:"—" }}</td>
+                <td>{{ lead.name|default:"—" }}</td>
+                <td>{{ lead.position|default:"—" }}</td>
+                <td>{% if lead.linkedin %}<a href="{{ lead.linkedin }}" target="_blank" rel="noopener noreferrer">Profile</a>{% else %}—{% endif %}</td>
+                <td>{% if lead.saved %}<span class="tag">Saved</span>{% else %}—{% endif %}</td>
+                <td>
+                  {% if lead.crm_contact %}
+                    ID {{ lead.crm_contact.contact_id }}<br>
+                    {{ lead.crm_contact.email|default:"" }}
+                  {% else %}—{% endif %}
+                </td>
+                <td>{{ lead.company|default:"—" }}</td>
+                <td>{{ lead.domain|default:"—" }}</td>
+                <td>{{ lead.company_industry|default:"—" }}</td>
+                <td>{{ lead.company_size|default:"—" }}</td>
+                <td>{{ lead.company_location|default:"—" }}</td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="11">No leads found.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <h3>Results</h3>
+        <p class="lead-copy">Run a search to see leads appear here.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@yaireo/tagify"></script>
+<script>
+(function() {
+  if (typeof Tagify === 'undefined') {
+    console.warn('Tagify not loaded; skipping enhanced inputs.');
+    return;
+  }
+  const enumsScript = document.getElementById('lead-search-enums-json');
+  const fallbackSeniority = ["Owner","Partner","Chief Officer","VP","Director","Senior","Manager","Intern","Unpaid"];
+  const fallbackIndustries = [
+    "Defense & Space","Computer Networking","Internet","Computer Hardware","Computer Software","Law Practice",
+    "Legal Services","Management Consulting","Biotechnology","Medical Practice","Hospital & Health Care",
+    "Semiconductors","Telecommunications","Medical Devices","Cosmetics","Apparel & Fashion","Sporting Goods",
+    "Tobacco","Supermarkets","Food Production","Consumer Electronics","Consumer Goods","Furniture","Retail",
+    "Entertainment","Gambling & Casinos","Pharmaceuticals","Veterinary","Restaurants","Sports","Food & Beverages",
+    "Motion Pictures and Film","Broadcast Media","Museums and Institutions","Fine Art","Performing Arts",
+    "Recreational Facilities and Services","Banking","Insurance","Financial Services","Real Estate",
+    "Investment Banking","Investment Management","Accounting","Construction","Building Materials",
+    "Architecture & Planning","Leisure, Travel & Tourism","Hospitality","Automotive","Chemicals","Machinery",
+    "Oil & Energy","Shipbuilding","Mining & Metals","Utilities","Textiles","Paper & Forest Products",
+    "Railroad Manufacture","Farming","Ranching","Fishery","Dairy","Primary/Secondary Education",
+    "Higher Education","Education Management","Research","Military","Legislative Office","Judiciary",
+    "Civil Engineering","Aviation & Aerospace","Law Enforcement","Public Safety","Executive Office",
+    "Public Policy","Marketing and Advertising","Newspapers","Publishing","Printing","Information Services",
+    "Libraries","Environmental Services","Package/Freight Delivery","Individual & Family Services",
+    "Religious Institutions","Civic & Social Organization","Consumer Services","Transportation/Trucking/Railroad",
+    "Warehousing","Airlines/Aviation","Maritime","Information Technology and Services","Market Research",
+    "Public Relations and Communications","Design","Nonprofit Organization Management","Fund-Raising",
+    "Writing and Editing","Program Development","Staffing and Recruiting","Professional Training & Coaching",
+    "International Affairs","Government Administration","Translation and Localization","Computer Games",
+    "Events Services","Arts and Crafts","Electrical/Electronic Manufacturing","Nanotechnology","Online Media",
+    "Logistics and Supply Chain","Music","Plastics","Computer & Network Security","Wireless",
+    "Alternative Dispute Resolution","Security and Investigations","Facilities Services",
+    "Outsourcing/Offshoring","Health, Wellness and Fitness","Alternative Medicine","Animation",
+    "Media Production","Commercial Real Estate","Capital Markets","Philanthropy","Think Tanks","E-Learning",
+    "Wholesale","Import and Export","Mechanical or Industrial Engineering","Photography","Human Resources",
+    "Business Supplies and Equipment","Mental Health Care","Graphic Design",
+    "International Trade and Development","Wine and Spirits","Luxury Goods & Jewelry","Renewables & Environment",
+    "Political Organization","Venture Capital & Private Equity","Government Relations","Industrial Automation",
+    "Horticulture","Mobile Games","Packaging and Containers","Glass, Ceramics & Concrete",
+  ];
+  let enums = { industries: [], seniority: [], company_types: [] };
+  if (enumsScript) {
+    try { enums = JSON.parse(enumsScript.textContent); } catch (e) { console.warn('Enum parse failed', e); }
+  }
+
+  const form = document.getElementById('lead-search-form');
+  const pageInput = document.getElementById('id_page_number');
+  const prevBtn = document.getElementById('pagination-prev');
+  const nextBtn = document.getElementById('pagination-next');
+  const clearTagsBtn = document.getElementById('clear-tags');
+  const tagRoot = document.getElementById('tag-filter-root');
+
+  function submitWithDelta(delta) {
+    if (!form || !pageInput) return;
+    const current = parseInt(pageInput.value || '1', 10);
+    const nextPage = Math.max(1, current + delta);
+    pageInput.value = nextPage;
+    form.submit();
+  }
+
+  if (prevBtn) prevBtn.addEventListener('click', function() { submitWithDelta(-1); });
+  if (nextBtn) nextBtn.addEventListener('click', function() { submitWithDelta(1); });
+
+  const filtersConfig = [
+    { key: 'position', label: 'Job title', hiddenId: 'id_position', whitelist: [], allowExclude: false, placeholder: 'Add job titles...' },
+    { key: 'departments', label: 'Departments', hiddenId: 'id_departments', whitelist: [], allowExclude: true, placeholder: 'Add departments...' },
+    { key: 'seniority', label: 'Seniority', hiddenId: 'id_seniority', whitelist: (enums.seniority && enums.seniority.length ? enums.seniority : fallbackSeniority), allowExclude: false, placeholder: 'Select seniority', enforceWhitelist: true },
+    { key: 'contact_location', label: 'Contact location', hiddenId: 'id_contact_location', whitelist: [], allowExclude: false, placeholder: 'Country or region' },
+    { key: 'company_locations', label: 'Company locations', hiddenId: 'id_company_locations', whitelist: [], allowExclude: false, placeholder: 'HQ country or region' },
+    { key: 'industries', label: 'Industry', hiddenId: 'id_industries', whitelist: (enums.industries && enums.industries.length ? enums.industries : fallbackIndustries), allowExclude: true, placeholder: 'Select industries', enforceWhitelist: true },
+    { key: 'company_types', label: 'Company type', hiddenId: 'id_company_types', whitelist: (enums.company_types && enums.company_types.length ? enums.company_types : ["Private","Public","Education","Government","Nonprofit"]), allowExclude: true, placeholder: 'Select company types', enforceWhitelist: true },
+    { key: 'company_keywords', label: 'Company keywords', hiddenId: 'id_company_keywords', whitelist: [], allowExclude: true, placeholder: 'Add company keywords' },
+    { key: 'technologies', label: 'Technologies', hiddenId: 'id_technologies', whitelist: [], allowExclude: true, placeholder: 'Add technologies' },
+    { key: 'contact_names', label: 'Contact names', hiddenId: 'id_contact_names', whitelist: [], allowExclude: true, placeholder: 'Add contact names' },
+    { key: 'contact_keywords', label: 'Contact keywords', hiddenId: 'id_contact_keywords', whitelist: [], allowExclude: true, placeholder: 'Add contact keywords' },
+    { key: 'company_domain', label: 'Company domain', hiddenId: 'id_company_domain', whitelist: [], allowExclude: true, placeholder: 'Add company domains' },
+    { key: 'company_name', label: 'Company name', hiddenId: 'id_company_name', whitelist: [], allowExclude: true, placeholder: 'Add company names' },
+  ];
+
+  function parseExisting(val, allowExclude) {
+    if (!val) return [];
+    return val.split(',').map(v => v.trim()).filter(Boolean).map(v => {
+      const isExcl = allowExclude && v.toLowerCase().startsWith('not ');
+      return { value: isExcl ? v.slice(4).trim() : v, exclude: isExcl };
+    });
+  }
+
+  function parseParams() {
+    const params = new URLSearchParams(window.location.search);
+    const values = {};
+    filtersConfig.forEach(cfg => {
+      const inc = params.get(`${cfg.key}_include`);
+      const exc = cfg.allowExclude ? params.get(`${cfg.key}_exclude`) : null;
+      values[cfg.key] = {
+        include: inc ? inc.split(',').filter(Boolean) : [],
+        exclude: exc ? exc.split(',').filter(Boolean) : [],
+      };
+    });
+    return values;
+  }
+
+  function buildTagify(input, cfg) {
+    const hasWhitelist = cfg.whitelist && cfg.whitelist.length;
+    const tagify = new Tagify(input, {
+      whitelist: cfg.whitelist || [],
+      dropdown: {
+        enabled: hasWhitelist ? 1 : 0,
+        closeOnSelect: true,
+        maxItems: Math.max(20, (cfg.whitelist || []).length || 20),
+        fuzzySearch: true,
+        searchMinLength: 0,
+      },
+      enforceWhitelist: !!cfg.enforceWhitelist,
+      maxTags: cfg.maxTags || undefined,
+    });
+    tagify.settings.templates.tag = function(tagData) {
+      const cls = tagData.exclude ? 'tagify__tag exclude' : 'tagify__tag include';
+      const toggle = cfg.allowExclude ? `<button type="button" class="toggle-exclude" title="Toggle include/exclude">⊖</button>` : '';
+      return `<tag title="${tagData.value}"
+          contenteditable="false"
+          spellcheck="false"
+          class="${cls}"
+          ${this.getAttributes(tagData)}>
+        <x title="" class="tagify__tag__removeBtn"></x>
+        <span class="tagify__tag-text">${tagData.value}</span>
+        ${toggle}
+      </tag>`;
+    };
+    return tagify;
+  }
+
+  function renderFilter(cfg, initial, tagifyMap) {
+    if (!tagRoot) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'filter';
+    const help = cfg.allowExclude ? '<small>(include/exclude)</small>' : '<small>(include)</small>';
+    wrapper.innerHTML = `<label>${cfg.label} ${help}</label>`;
+
+    const input = document.createElement('input');
+    input.className = 'tagify-input';
+    input.placeholder = cfg.placeholder || '';
+    wrapper.appendChild(input);
+    tagRoot.appendChild(wrapper);
+
+    const tagify = buildTagify(input, cfg);
+
+    const preload = [];
+    (initial.include || []).forEach(v => preload.push({ value: v, exclude: false }));
+    if (cfg.allowExclude) {
+      (initial.exclude || []).forEach(v => preload.push({ value: v, exclude: true }));
+    }
+    if (!preload.length) {
+      const hidden = document.getElementById(cfg.hiddenId);
+      preload.push(...parseExisting(hidden && hidden.value, cfg.allowExclude));
+    }
+    if (preload.length) tagify.addTags(preload);
+
+    if (cfg.allowExclude) {
+      tagify.DOM.scope.addEventListener('click', (e) => {
+        if (e.target.classList.contains('toggle-exclude')) {
+          const tagElm = e.target.closest('tag');
+          const uid = tagElm && tagElm.getAttribute('value');
+          const item = tagify.value.find(t => t.value === uid);
+          const newData = Object.assign({}, item || { value: uid }, { exclude: !(item && item.exclude) });
+          if (tagElm) tagify.removeTags(tagElm, true);
+          tagify.addTags([newData]);
+          syncHidden(tagifyMap);
+        }
+      });
+    }
+
+    tagify.on('add', () => syncHidden(tagifyMap));
+    tagify.on('remove', () => syncHidden(tagifyMap));
+
+    if (cfg.whitelist && cfg.whitelist.length) {
+      tagify.settings.dropdown.enabled = 1;
+      const openDropdown = () => {
+        const query = tagify.DOM.input.textContent || '';
+        tagify.dropdown.show.call(tagify, query);
+        tagify.DOM.scope.classList.add('tagify--dropdown-visible');
+      };
+      const closeDropdown = () => tagify.DOM.scope.classList.remove('tagify--dropdown-visible');
+
+      // Open on focus, click, or any key entry to mirror demo behavior.
+      tagify.on('focus', openDropdown);
+      tagify.on('input', openDropdown);
+      tagify.DOM.scope.addEventListener('click', openDropdown);
+      tagify.DOM.input.addEventListener('keydown', openDropdown);
+      tagify.on('dropdown:hide', closeDropdown);
+    }
+
+    tagifyMap[cfg.key] = tagify;
+  }
+
+  const tagifyMap = {};
+  const initialFromUrl = parseParams();
+  filtersConfig.forEach(cfg => renderFilter(cfg, initialFromUrl[cfg.key] || { include: [], exclude: [] }, tagifyMap));
+  syncHidden(tagifyMap);
+
+  function syncHidden(tagifyMapLocal) {
+    const params = new URLSearchParams();
+    filtersConfig.forEach(cfg => {
+      const tagify = tagifyMapLocal[cfg.key];
+      const hidden = document.getElementById(cfg.hiddenId);
+      if (!tagify || !hidden) return;
+      const include = [];
+      const exclude = [];
+      const tags = Array.from(tagify.DOM.scope.querySelectorAll('tag'));
+      const seenInc = new Set();
+      const seenExc = new Set();
+      tags.forEach(tag => {
+        const val = tag.getAttribute('value');
+        if (!val) return;
+        if (cfg.allowExclude && tag.classList.contains('exclude')) {
+          const key = val.toLowerCase();
+          if (!seenExc.has(key)) {
+            seenExc.add(key);
+            exclude.push(val);
+          }
+        } else {
+          const key = val.toLowerCase();
+          if (!seenInc.has(key)) {
+            seenInc.add(key);
+            include.push(val);
+          }
+        }
+      });
+      // If a value is excluded, remove it from includes to avoid dual presence.
+      if (cfg.allowExclude && exclude.length) {
+        const excSet = new Set(exclude.map(v => v.toLowerCase()));
+        for (let i = include.length - 1; i >= 0; i--) {
+          if (excSet.has(include[i].toLowerCase())) {
+            include.splice(i, 1);
+          }
+        }
+      }
+      const combined = cfg.allowExclude ? include.concat(exclude.map(v => `NOT ${v}`)) : include;
+      hidden.value = combined.join(',');
+      if (include.length) params.set(`${cfg.key}_include`, include.join(','));
+      if (cfg.allowExclude && exclude.length) params.set(`${cfg.key}_exclude`, exclude.join(','));
+    });
+    const qs = params.toString();
+    const newUrl = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }
+
+  if (form) {
+    form.addEventListener('submit', () => {
+      syncHidden(tagifyMap);
+    });
+  }
+
+  if (clearTagsBtn) {
+    clearTagsBtn.addEventListener('click', () => {
+      Object.values(tagifyMap).forEach(tagify => tagify.removeAllTags());
+      syncHidden(tagifyMap);
+    });
+  }
+
+  const sizeSelect = document.getElementById('id_company_size_ranges');
+  const chipContainer = document.getElementById('employee-range-chips');
+  if (sizeSelect && chipContainer) {
+    chipContainer.innerHTML = '';
+    const selected = new Set(Array.from(sizeSelect.selectedOptions || []).map(opt => opt.value));
+    Array.from(sizeSelect.options).forEach(opt => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip' + (selected.has(opt.value) ? ' active' : '');
+      chip.textContent = opt.text;
+      chip.addEventListener('click', () => {
+        const isActive = chip.classList.toggle('active');
+        opt.selected = isActive;
+      });
+      chipContainer.appendChild(chip);
+    });
+  }
+})();
+</script>
+{% endblock %}
