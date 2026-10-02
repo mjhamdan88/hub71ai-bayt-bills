@@ -5,7 +5,7 @@
 import { LitElement, html, css } from 'lit';
 import { iconStyles, listStyles } from '../webchat-styles.js';
 import fontAwesomeLoader from '../utils/font-awesome-loader.js';
-import './message-item.js';
+import './message-item.js?v=actions3';
 
 export class MessageList extends LitElement {
   static properties = {

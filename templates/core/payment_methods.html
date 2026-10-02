@@ -1,0 +1,39 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<style>
+.wallet-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}.bank-card{padding:26px;border-radius:19px;background:linear-gradient(125deg,#143c34,#397d64);color:white;box-shadow:0 12px 25px #183c3422}.bank-card.mastercard{background:linear-gradient(125deg,#182a49,#536885)}.bank-card small{color:#dce6e2}.network{display:block;width:64px;height:40px;object-fit:contain}.chip{width:38px;height:29px;border-radius:6px;background:linear-gradient(130deg,#ccb276,#eedcaa);margin:25px 0 18px;border:1px solid #a78b55}.digits{font-size:25px;letter-spacing:3px;margin-bottom:20px}.wallet-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 24px}.wallet-fields input,.wallet-fields select{width:100%;padding:12px;border:1px solid #bdcdbf;border-radius:8px;background:#fff;color:#264638;font:inherit}.wallet-fields input:focus-visible,.wallet-fields select:focus-visible{outline:3px solid #b28735;outline-offset:2px}.wallet-actions{margin-top:24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}.wallet-grid .secondary{background:#eaf0e8;color:#274638}.bank-card strong,.bank-card .holder{overflow-wrap:anywhere}@media(max-width:760px){.wallet-grid,.wallet-fields{grid-template-columns:1fr}.bank-card{padding:20px}.digits{font-size:21px}}
+</style>
+<span class="eyebrow">HOUSEHOLD WALLET</span>
+<h1>Payment methods</h1>
+<p class="muted">Keep your card details together and choose a payment method for each household bill.</p>
+<div class="wallet-grid">
+{% for card in cards %}
+<section class="card">
+  <div class="bank-card {{ card.network|lower }}">
+    <div class="row"><strong style="font-size:25px">{{ card.bank }}</strong>{% if card.network == 'Visa' %}<img class="network" src="/static/core/visa.svg" alt="Visa">{% elif card.network == 'Mastercard' %}<img class="network" src="/static/core/mastercard.svg" alt="Mastercard">{% else %}<span>{{ card.network }}</span>{% endif %}</div>
+    <div class="chip" aria-hidden="true"></div>
+    <div class="digits"><span aria-label="Card ending in">•••• •••• ••••</span> {{ card.last4 }}</div>
+    <div class="row"><div class="holder"><small>CARDHOLDER</small><div>{{ card.cardholder|default:user.get_full_name|default:'—' }}</div></div><div><small>VALID THRU</small><div>{% if card.expiry %}{{ card.expiry|slice:'5:7' }} / {{ card.expiry|slice:'2:4' }}{% else %}—{% endif %}</div></div></div>
+  </div>
+  <div class="row" style="margin-top:16px"><div><strong>{{ card.bank }} · {{ card.network }}</strong><br><small>Ending in {{ card.last4 }}</small></div><form method="post" action="/wallet/{{ card.id }}/remove/">{% csrf_token %}<button type="submit" class="secondary" aria-label="Remove {{ card.bank }} card ending in {{ card.last4 }}">Remove</button></form></div>
+</section>
+{% empty %}
+<section class="card"><h2>Your wallet is empty</h2><p class="muted">Add a payment method to organize your household bills.</p></section>
+{% endfor %}
+</div>
+<section class="card">
+<h2>Add a payment method</h2>
+<p class="muted">Save the details you use to identify your card.</p>
+<form method="post" action="/wallet/add/">
+{% csrf_token %}
+<div class="wallet-fields">
+  <div><label for="cardholder">Name on card</label><input id="cardholder" name="cardholder" autocomplete="cc-name" maxlength="100" value="{{ values.cardholder }}" required></div>
+  <div><label for="bank">Bank or card issuer</label><input id="bank" name="bank" maxlength="80" placeholder="e.g. First Abu Dhabi Bank" value="{{ values.bank }}" required></div>
+  <div><label for="network">Card network</label><select id="network" name="network" required><option value="">Select a network</option><option{% if values.network == 'Visa' %} selected{% endif %}>Visa</option><option{% if values.network == 'Mastercard' %} selected{% endif %}>Mastercard</option><option{% if values.network == 'American Express' %} selected{% endif %}>American Express</option><option{% if values.network == 'Discover' %} selected{% endif %}>Discover</option><option{% if values.network == 'UnionPay' %} selected{% endif %}>UnionPay</option><option{% if values.network == 'Other' %} selected{% endif %}>Other</option></select></div>
+  <div><label for="last4">Last four digits</label><input id="last4" name="last4" inputmode="numeric" pattern="[0-9]{4}" minlength="4" maxlength="4" placeholder="1234" value="{{ values.last4 }}" required></div>
+  <div><label for="expiry">Expiry date</label><input id="expiry" name="expiry" type="month" value="{{ values.expiry }}" required></div>
+</div>
+<div class="wallet-actions"><button type="submit">Save payment method</button><small>Saving these details does not charge your card.</small></div>
+</form>
+</section>
+{% endblock %}

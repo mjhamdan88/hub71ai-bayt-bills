@@ -1,3 +1,3 @@
 from django.urls import path
-from . import views
-urlpatterns = [path('',views.home),path('login/',views.auth),path('logout/',views.signout),path('health/',views.health),path('ai/respond/',views.ai_respond),path('bills/<int:pk>/pay/',views.pay),path('budgets/<int:pk>/',views.budget),path('autopay/',views.autopay)]
+from . import views, streaming, wallet
+urlpatterns = [path('wallet/add/',wallet.add),path('wallet/<int:pk>/remove/',wallet.remove),path('budgets/<int:pk>/method/',wallet.select_method),path('actions/<int:pk>/',wallet.confirm),path('profile/',views.profile),path('payment-methods/',views.payment_methods),path('finance-chat/chats/',views.conversations),path('finance-chat/stream/',streaming.respond),path('finance-chat/messages/',views.chat_messages),path('finance-chat/send/',views.ai_respond),path('bills/<int:pk>/document/',views.document),path('',views.home),path('login/',views.auth),path('logout/',views.signout),path('health/',views.health),path('ai/respond/',views.ai_respond),path('bills/<int:pk>/pay/',views.pay),path('budgets/<int:pk>/',views.budget),path('autopay/',views.autopay)]

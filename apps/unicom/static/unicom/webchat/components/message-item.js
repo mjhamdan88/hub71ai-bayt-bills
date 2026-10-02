@@ -150,6 +150,10 @@ export class MessageItem extends LitElement {
   }
 
   _handleButtonClick(button) {
+    if (button.type === 'finance_action') {
+      this.dispatchEvent(new CustomEvent('finance-action', {detail: button, bubbles: true, composed: true}));
+      return;
+    }
     if (button.type === 'url') {
       window.open(button.url, '_blank');
       return;
@@ -309,6 +313,7 @@ export class MessageItem extends LitElement {
             <span class="tool-icon" aria-hidden="true">${icon}</span>
             ${progress ? html`<span class="tool-progress">${progress}</span>` : ''}
             ${status === 'pending' ? html`<span class="loading-dots">...</span>` : ''}
+
             ${presentation?.type === 'image' ? html`
               <figure class="tool-presentation-image">
                 <img src=${presentation.url} alt=${presentation.alt || 'Tool image'} @click=${() => this._openImageModal(presentation.url, presentation)}>

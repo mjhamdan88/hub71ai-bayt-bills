@@ -7,7 +7,7 @@ import { LitElement, html, css } from 'lit';
 import { baseStyles } from './webchat-styles.js';
 import { RealTimeWebChatClient } from './utils/realtime-client.js';
 import './components/chat-list.js';
-import './components/message-list.js';
+import './components/message-list.js?v=actions3';
 import './components/message-input.js';
 
 const WEBCHAT_UI_VERSION = '2025.02.15-rc4';
